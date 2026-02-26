@@ -52,7 +52,8 @@ export interface SessionBlock {
   id: string
   session_id: string
   shot_id: string | null
-  block_type: 'warmup' | 'core' | 'variant' | 'reinforcement' | 'cooldown'
+  shot_image_id: string | null
+  block_type: 'warmup' | 'core' | 'reinforcement' | 'cooldown'
   duration_minutes: number
   attempts: number
   successes: number
@@ -60,6 +61,7 @@ export interface SessionBlock {
   notes: string | null
   sort_order: number
   shot?: Shot
+  shot_image?: ShotImage
 }
 
 export type FrequencyLabel = 'Low' | 'Medium' | 'High'
