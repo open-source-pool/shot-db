@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router'
 import { useSessionById, updateBlock } from '../hooks/useSession'
 import { getImageUrl } from '../lib/supabase'
-import type { SessionBlock } from '../types'
+import type { SessionBlock, ShotImage } from '../types'
 
 export function SessionActive() {
   const { id } = useParams<{ id: string }>()
@@ -14,6 +14,7 @@ export function SessionActive() {
   const intervalRef = useRef<ReturnType<typeof setInterval>>(null)
   const [editingField, setEditingField] = useState<'attempts' | 'successes' | null>(null)
   const [editValue, setEditValue] = useState('')
+  const [selectedImageId, setSelectedImageId] = useState<string | null>(null)
 
   // Timer
   useEffect(() => {
@@ -26,6 +27,21 @@ export function SessionActive() {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
   }, [running])
+
+  // Reset selected image when block changes
+  useEffect(() => {
+    if (!session) return
+    const blocks = session.blocks ?? []
+    const block = blocks[currentBlockIndex]
+    if (block?.shot_image_id) {
+      setSelectedImageId(block.shot_image_id)
+    } else if (block?.shot?.images?.length) {
+      const primary = block.shot.images.find((i) => i.is_primary) ?? block.shot.images[0]
+      setSelectedImageId(primary.id)
+    } else {
+      setSelectedImageId(null)
+    }
+  }, [currentBlockIndex, session])
 
   if (loading || !session)
     return <div className="p-4 text-on-surface-secondary">Loading session...</div>
@@ -59,7 +75,10 @@ export function SessionActive() {
   }
 
   const shot = block.shot
-  const primaryImage = shot?.images?.find((img) => img.is_primary) ?? shot?.images?.[0]
+  const images = shot?.images ?? []
+  const currentImage = images.find((i) => i.id === selectedImageId)
+    ?? images.find((i) => i.is_primary)
+    ?? images[0]
   const blockDurationSec = block.duration_minutes * 60
 
   // Calculate cumulative time for current block
@@ -69,6 +88,13 @@ export function SessionActive() {
   }
   const blockElapsed = elapsed - priorMinutes * 60
   const blockRemaining = Math.max(0, blockDurationSec - blockElapsed)
+
+  async function selectVariation(image: ShotImage) {
+    if (!block) return
+    setSelectedImageId(image.id)
+    await updateBlock(block.id, { shot_image_id: image.id })
+    refetch()
+  }
 
   async function recordAttempt(success: boolean) {
     if (!block) return
@@ -89,12 +115,10 @@ export function SessionActive() {
 
     if (editingField === 'attempts') {
       updates.attempts = val
-      // Ensure successes doesn't exceed attempts
       if ((block.successes ?? 0) > val) {
         updates.successes = val
       }
     } else {
-      // Ensure successes doesn't exceed attempts
       updates.successes = Math.min(val, block.attempts ?? 0)
     }
 
@@ -158,10 +182,10 @@ export function SessionActive() {
 
       {/* Shot image */}
       {shot && (
-        <div className="aspect-[4/3] sm:aspect-[16/9] max-h-[50vh] bg-black mx-4 rounded-xl overflow-hidden mb-4">
-          {primaryImage ? (
+        <div className="aspect-[4/3] sm:aspect-[16/9] max-h-[50vh] bg-black mx-4 rounded-xl overflow-hidden mb-2">
+          {currentImage ? (
             <img
-              src={getImageUrl(primaryImage.storage_path)}
+              src={getImageUrl(currentImage.storage_path)}
               alt={shot.title}
               className="w-full h-full object-contain"
             />
@@ -170,6 +194,37 @@ export function SessionActive() {
               No image
             </div>
           )}
+        </div>
+      )}
+
+      {/* Variation picker thumbnails */}
+      {shot && images.length > 1 && (
+        <div className="mx-4 mb-4">
+          <div className="flex gap-2 overflow-x-auto py-1">
+            {images.map((img) => {
+              const isSelected = img.id === (selectedImageId ?? currentImage?.id)
+              return (
+                <button
+                  key={img.id}
+                  onClick={() => selectVariation(img)}
+                  className={`shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-colors ${
+                    isSelected
+                      ? 'border-accent'
+                      : 'border-transparent opacity-60 hover:opacity-100'
+                  }`}
+                >
+                  <img
+                    src={getImageUrl(img.storage_path)}
+                    alt={img.file_name}
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-[10px] text-on-surface-secondary mt-1">
+            Tap a variation to practice
+          </p>
         </div>
       )}
 
@@ -185,6 +240,9 @@ export function SessionActive() {
           </h2>
           <span className="text-xs text-on-surface-secondary capitalize">
             {block.block_type} &middot; {block.duration_minutes} min
+            {currentImage && images.length > 1 && (
+              <> &middot; {currentImage.file_name.replace(/\.[^.]+$/, '')}</>
+            )}
           </span>
         </div>
 

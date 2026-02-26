@@ -6,6 +6,7 @@ import { getSessionCount } from '../hooks/useSessions'
 import { createSession, createSessionBlocks } from '../hooks/useSession'
 import { planSession } from '../lib/session-planner'
 import { prioritizeShots } from '../lib/scoring'
+import { getImageUrl } from '../lib/supabase'
 import type { PlanBlock } from '../lib/session-planner'
 import type { Shot } from '../types'
 
@@ -49,7 +50,6 @@ export function SessionSetup() {
 
   function handleSwapShot(blockIndex: number, newShot: Shot) {
     if (!plan) return
-    // Swap the shot in all blocks that reference the same shot as blockIndex
     const oldShotId = plan[blockIndex].shot?.id
     const updated = plan.map((block) => {
       if (block.shot?.id === oldShotId) {
@@ -83,6 +83,7 @@ export function SessionSetup() {
 
     const blocks = plan.map((b, i) => ({
       shot_id: b.shot?.id ?? null,
+      shot_image_id: null,
       block_type: b.blockType,
       duration_minutes: b.durationMinutes,
       attempts: 0,
@@ -97,6 +98,10 @@ export function SessionSetup() {
   }
 
   const availableShots = getAvailableShots()
+
+  function getPrimaryImage(shot: Shot) {
+    return shot.images?.find((i) => i.is_primary) ?? shot.images?.[0]
+  }
 
   return (
     <div className="p-4 space-y-4">
@@ -163,6 +168,7 @@ export function SessionSetup() {
           {plan.map((block, i) => {
             const isShotBlock = block.phase === 'shot-work' && block.shot
             const isSwapping = swappingIndex === i
+            const img = block.shot ? getPrimaryImage(block.shot) : null
 
             return (
               <div key={i}>
@@ -175,34 +181,62 @@ export function SessionSetup() {
                         : 'border-border bg-surface-secondary'
                   }`}
                 >
-                  <div className="flex justify-between items-start">
-                    <span className="font-medium">{block.label}</span>
-                    <div className="flex items-center gap-2 ml-2 shrink-0">
-                      <span className="text-xs text-on-surface-secondary whitespace-nowrap">
-                        {block.durationMinutes} min
-                      </span>
-                      {isShotBlock && (
-                        <button
-                          onClick={() => setSwappingIndex(isSwapping ? null : i)}
-                          className={`text-xs px-2 py-0.5 rounded border transition-colors ${
-                            isSwapping
-                              ? 'border-accent bg-accent text-white'
-                              : 'border-accent/30 text-accent hover:bg-accent/5'
-                          }`}
-                        >
-                          {isSwapping ? 'Cancel' : 'Swap'}
-                        </button>
+                  <div className="flex gap-3">
+                    {/* Shot thumbnail */}
+                    {isShotBlock && (
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg bg-black overflow-hidden shrink-0">
+                        {img ? (
+                          <img
+                            src={getImageUrl(img.storage_path)}
+                            alt={block.shot!.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">
+                            No img
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Block details */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start">
+                        <span className="font-medium truncate">{block.label}</span>
+                        <div className="flex items-center gap-2 ml-2 shrink-0">
+                          <span className="text-xs text-on-surface-secondary whitespace-nowrap">
+                            {block.durationMinutes} min
+                          </span>
+                          {isShotBlock && (
+                            <button
+                              onClick={() => setSwappingIndex(isSwapping ? null : i)}
+                              className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+                                isSwapping
+                                  ? 'border-accent bg-accent text-white'
+                                  : 'border-accent/30 text-accent hover:bg-accent/5'
+                              }`}
+                            >
+                              {isSwapping ? 'Cancel' : 'Swap'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-xs text-on-surface-secondary mt-1 line-clamp-2">
+                        {block.focus}
+                      </p>
+                      {block.spacingNote && (
+                        <p className="text-xs text-on-surface-secondary italic mt-0.5">
+                          {block.spacingNote}
+                        </p>
+                      )}
+                      {/* Show variation count */}
+                      {block.shot?.images && block.shot.images.length > 1 && (
+                        <p className="text-xs text-accent mt-1">
+                          {block.shot.images.length} variations available
+                        </p>
                       )}
                     </div>
                   </div>
-                  <p className="text-xs text-on-surface-secondary mt-1">
-                    {block.focus}
-                  </p>
-                  {block.spacingNote && (
-                    <p className="text-xs text-on-surface-secondary italic mt-0.5">
-                      {block.spacingNote}
-                    </p>
-                  )}
                 </div>
 
                 {/* Swap picker */}
@@ -216,16 +250,32 @@ export function SessionSetup() {
                         No other shots available to swap in.
                       </p>
                     ) : (
-                      <div className="space-y-1 max-h-48 overflow-y-auto">
-                        {availableShots.map((shot) => (
-                          <button
-                            key={shot.id}
-                            onClick={() => handleSwapShot(i, shot)}
-                            className="w-full text-left px-3 py-2 rounded-lg text-sm border border-border bg-surface hover:border-accent hover:bg-accent/5 transition-colors"
-                          >
-                            {shot.title}
-                          </button>
-                        ))}
+                      <div className="space-y-1 max-h-64 overflow-y-auto">
+                        {availableShots.map((shot) => {
+                          const shotImg = getPrimaryImage(shot)
+                          return (
+                            <button
+                              key={shot.id}
+                              onClick={() => handleSwapShot(i, shot)}
+                              className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg text-sm border border-border bg-surface hover:border-accent hover:bg-accent/5 transition-colors"
+                            >
+                              <div className="w-10 h-10 rounded-lg bg-black overflow-hidden shrink-0">
+                                {shotImg ? (
+                                  <img
+                                    src={getImageUrl(shotImg.storage_path)}
+                                    alt={shot.title}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-gray-500 text-[10px]">
+                                    —
+                                  </div>
+                                )}
+                              </div>
+                              <span className="truncate">{shot.title}</span>
+                            </button>
+                          )
+                        })}
                       </div>
                     )}
                   </div>

@@ -11,7 +11,7 @@ export function ShotCard({ shot }: { shot: Shot }) {
       to={`/shots/${shot.slug}`}
       className="block rounded-xl overflow-hidden bg-surface-secondary border border-border hover:border-accent transition-colors"
     >
-      <div className="aspect-[4/3] bg-surface-secondary overflow-hidden">
+      <div className="aspect-[4/3] sm:aspect-[3/2] bg-surface-secondary overflow-hidden">
         {primaryImage ? (
           <img
             src={getImageUrl(primaryImage.storage_path)}
@@ -25,8 +25,8 @@ export function ShotCard({ shot }: { shot: Shot }) {
           </div>
         )}
       </div>
-      <div className="p-3">
-        <h3 className="font-semibold text-sm text-on-surface truncate">
+      <div className="p-3 sm:p-4">
+        <h3 className="font-semibold text-sm sm:text-base text-on-surface truncate">
           {shot.title}
         </h3>
         <div className="flex items-center gap-2 mt-1">
