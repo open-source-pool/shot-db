@@ -8,7 +8,7 @@ const DEFAULT_COOLDOWN = 10
 
 export interface PlanBlock {
   phase: 'warmup' | 'shot-work' | 'cooldown'
-  blockType: 'warmup' | 'core' | 'variant' | 'reinforcement' | 'cooldown'
+  blockType: 'warmup' | 'core' | 'reinforcement' | 'cooldown'
   label: string
   shot: Shot | null
   durationMinutes: number
@@ -97,23 +97,20 @@ export function planSession({
 
   function makeShotBlock(
     scored: ShotWithScore,
-    type: 'core' | 'variant' | 'reinforcement',
+    type: 'core' | 'reinforcement',
     duration: number
   ): PlanBlock {
     const assessment = scored.latestAssessment
     let focus = ''
     if (assessment) {
       const hint = focusHint(assessment)
-      if (type === 'variant') focus = `Variant block (change speed/angle/spin). ${hint}`
-      else if (type === 'reinforcement') focus = `Reinforce feel under fatigue. ${hint}`
+      if (type === 'reinforcement') focus = `Reinforce feel under fatigue. ${hint}`
       else focus = `Same-instance reps. ${hint}`
     } else {
       focus =
-        type === 'variant'
-          ? 'Variant block: explore different angles and speeds.'
-          : type === 'reinforcement'
-            ? 'Reinforcement: repeat best layout.'
-            : 'First assessment needed — focus on getting comfortable.'
+        type === 'reinforcement'
+          ? 'Reinforcement: repeat best layout.'
+          : 'First assessment needed — focus on getting comfortable.'
     }
 
     const period = Math.max(1, scored.aggregateScore)
@@ -121,7 +118,6 @@ export function planSession({
 
     const labels: Record<string, string> = {
       core: 'Core reps',
-      variant: 'Variant exploration',
       reinforcement: 'Reinforcement',
     }
 
@@ -151,11 +147,11 @@ export function planSession({
     practiceMinutes -= duration
   }
 
-  // Second pass: variant blocks
+  // Second pass: reinforcement blocks for foundation shots
   for (const scored of foundationTargets) {
     if (practiceMinutes <= 0) break
     const duration = Math.min(TARGET_BLOCK_MINUTES, practiceMinutes)
-    blocks.push(makeShotBlock(scored, 'variant', duration))
+    blocks.push(makeShotBlock(scored, 'reinforcement', duration))
     practiceMinutes -= duration
   }
 
@@ -169,9 +165,9 @@ export function planSession({
       foundationTargets.push(scored)
       practiceMinutes -= duration
       if (practiceMinutes > 0) {
-        const varDuration = Math.min(TARGET_BLOCK_MINUTES, practiceMinutes)
-        blocks.push(makeShotBlock(scored, 'variant', varDuration))
-        practiceMinutes -= varDuration
+        const reinfDuration = Math.min(TARGET_BLOCK_MINUTES, practiceMinutes)
+        blocks.push(makeShotBlock(scored, 'reinforcement', reinfDuration))
+        practiceMinutes -= reinfDuration
       }
     } else {
       if (foundationTargets.length === 0) break

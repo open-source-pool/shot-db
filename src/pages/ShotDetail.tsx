@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, Link } from 'react-router'
 import { useShot } from '../hooks/useShots'
 import { useAssessments } from '../hooks/useAssessments'
+import { useShotSessionHistory } from '../hooks/useSessions'
 import { supabase, getImageUrl } from '../lib/supabase'
 import { FREQUENCY_LABELS, COMFORT_LABELS } from '../types'
 import { ImageUpload } from '../components/ImageUpload'
@@ -10,6 +11,7 @@ export function ShotDetail() {
   const { slug } = useParams<{ slug: string }>()
   const { shot, loading, error, refetch } = useShot(slug)
   const { assessments } = useAssessments(shot?.id)
+  const { entries: sessionHistory } = useShotSessionHistory(shot?.id)
   const [imageIndex, setImageIndex] = useState(0)
 
   // Edit mode state
@@ -449,7 +451,123 @@ export function ShotDetail() {
             )}
           </div>
         )}
+
+        {/* Session history */}
+        {!editing && (
+          <div>
+            <h2 className="text-sm font-semibold text-on-surface-secondary mb-2">
+              Session History ({sessionHistory.length} blocks)
+            </h2>
+            {sessionHistory.length === 0 ? (
+              <p className="text-sm text-on-surface-secondary">
+                Not practiced in any sessions yet.
+              </p>
+            ) : (
+              <SessionHistoryTable entries={sessionHistory} />
+            )}
+          </div>
+        )}
       </div>
+    </div>
+  )
+}
+
+/** Grouped session history: aggregates blocks per session date */
+function SessionHistoryTable({ entries }: { entries: import('../hooks/useSessions').ShotSessionEntry[] }) {
+  // Group entries by session_id
+  const grouped = new Map<string, typeof entries>()
+  for (const e of entries) {
+    const list = grouped.get(e.session_id) ?? []
+    list.push(e)
+    grouped.set(e.session_id, list)
+  }
+
+  // Convert to sorted array (newest first — entries are already sorted by date desc)
+  const sessions = Array.from(grouped.entries()).map(([sessionId, blocks]) => {
+    const totalAttempts = blocks.reduce((s, b) => s + b.attempts, 0)
+    const totalSuccesses = blocks.reduce((s, b) => s + b.successes, 0)
+    const totalMinutes = blocks.reduce((s, b) => s + b.duration_minutes, 0)
+    const rate = totalAttempts > 0 ? Math.round((totalSuccesses / totalAttempts) * 100) : null
+    return {
+      sessionId,
+      date: blocks[0].session_date,
+      blocks,
+      totalAttempts,
+      totalSuccesses,
+      totalMinutes,
+      rate,
+    }
+  })
+
+  // Overall stats
+  const allAttempts = sessions.reduce((s, r) => s + r.totalAttempts, 0)
+  const allSuccesses = sessions.reduce((s, r) => s + r.totalSuccesses, 0)
+  const overallRate = allAttempts > 0 ? Math.round((allSuccesses / allAttempts) * 100) : null
+
+  return (
+    <div className="space-y-3">
+      {/* Summary stats */}
+      {sessions.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          <div className="p-2 rounded-lg border border-border bg-surface-secondary text-center">
+            <div className="text-lg font-bold">{sessions.length}</div>
+            <div className="text-[10px] text-on-surface-secondary">Sessions</div>
+          </div>
+          <div className="p-2 rounded-lg border border-border bg-surface-secondary text-center">
+            <div className="text-lg font-bold">{allAttempts}</div>
+            <div className="text-[10px] text-on-surface-secondary">Attempts</div>
+          </div>
+          <div className="p-2 rounded-lg border border-border bg-surface-secondary text-center">
+            <div className="text-lg font-bold">
+              {overallRate !== null ? `${overallRate}%` : '—'}
+            </div>
+            <div className="text-[10px] text-on-surface-secondary">Hit Rate</div>
+          </div>
+        </div>
+      )}
+
+      {/* Per-session rows */}
+      {sessions.map((s) => (
+        <Link
+          key={s.sessionId}
+          to={`/session/${s.sessionId}/review`}
+          className="block p-3 rounded-lg border border-border bg-surface-secondary text-sm hover:border-accent transition-colors"
+        >
+          <div className="flex justify-between items-center">
+            <span className="font-medium">
+              {new Date(s.date).toLocaleDateString()}
+            </span>
+            <span className="text-xs text-on-surface-secondary">
+              {s.totalMinutes} min
+            </span>
+          </div>
+          <div className="flex gap-4 mt-1 text-xs">
+            <span>{s.totalAttempts} attempts</span>
+            <span className="text-success">{s.totalSuccesses} hits</span>
+            <span className="font-medium">
+              {s.rate !== null ? `${s.rate}%` : '—'}
+            </span>
+          </div>
+          {s.blocks.some((b) => b.shot_image) && (
+            <div className="flex gap-1 mt-1.5">
+              {s.blocks
+                .filter((b) => b.shot_image)
+                .map((b, i) => (
+                  <div
+                    key={i}
+                    className="w-8 h-8 rounded overflow-hidden bg-black shrink-0"
+                  >
+                    <img
+                      src={getImageUrl(b.shot_image!.storage_path)}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+            </div>
+          )}
+        </Link>
+      ))}
     </div>
   )
 }

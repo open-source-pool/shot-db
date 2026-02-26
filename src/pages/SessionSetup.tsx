@@ -56,9 +56,7 @@ export function SessionSetup() {
         const typeLabel =
           block.blockType === 'core'
             ? 'Core reps'
-            : block.blockType === 'variant'
-              ? 'Variant exploration'
-              : 'Reinforcement'
+            : 'Reinforcement'
         return {
           ...block,
           shot: newShot,

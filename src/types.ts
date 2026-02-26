@@ -53,7 +53,7 @@ export interface SessionBlock {
   session_id: string
   shot_id: string | null
   shot_image_id: string | null
-  block_type: 'warmup' | 'core' | 'variant' | 'reinforcement' | 'cooldown'
+  block_type: 'warmup' | 'core' | 'reinforcement' | 'cooldown'
   duration_minutes: number
   attempts: number
   successes: number

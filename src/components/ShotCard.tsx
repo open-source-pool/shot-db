@@ -42,6 +42,11 @@ export function ShotCard({ shot }: { shot: Shot }) {
           <span className="text-xs text-on-surface-secondary">
             {FREQUENCY_LABELS[shot.frequency]}
           </span>
+          {(shot.images?.length ?? 0) > 1 && (
+            <span className="text-xs text-on-surface-secondary">
+              {shot.images!.length} vars
+            </span>
+          )}
         </div>
       </div>
     </Link>
