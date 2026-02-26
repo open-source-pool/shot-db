@@ -1,0 +1,17 @@
+{
+  "generatedAt": "2026-02-26T05:27:34.345Z",
+  "sourcePath": "/Users/nimo/Code/nimo-obsidian-notes-pool/shotdb",
+  "notes": "Cleaned seed data from Obsidian notes.",
+  "counts": {
+    "users": 1,
+    "shots": 31,
+    "assets": 42,
+    "tags": 2
+  },
+  "files": {
+    "users": "users.json",
+    "shots": "shots.json",
+    "tags": "tags.json",
+    "assetsDir": "assets"
+  }
+}
