@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import type { Session, ShotImage } from '../types'
+import type { Session, ShotImage, ShotVariation } from '../types'
 
 export interface ShotSessionEntry {
   session_id: string
@@ -12,6 +12,7 @@ export interface ShotSessionEntry {
   comfort_rating: number | null
   notes: string | null
   shot_image?: ShotImage | null
+  shot_variation?: ShotVariation | null
 }
 
 /** Fetch all session blocks for a given shot, newest first */
@@ -38,6 +39,7 @@ export function useShotSessionHistory(shotId: string | undefined) {
         comfort_rating,
         notes,
         shot_image:shot_images(*),
+        shot_variation:shot_variations(*, image:shot_images(*)),
         session:sessions(started_at)
       `)
       .eq('shot_id', id)
@@ -54,6 +56,7 @@ export function useShotSessionHistory(shotId: string | undefined) {
       comfort_rating: row.comfort_rating,
       notes: row.notes,
       shot_image: row.shot_image,
+      shot_variation: row.shot_variation,
     }))
 
     // Group by session and aggregate
@@ -100,4 +103,41 @@ export async function getSessionCount(): Promise<number> {
     .select('*', { count: 'exact', head: true })
 
   return count ?? 0
+}
+
+/**
+ * Fetch the last-practiced date for each shot (most recent session_block date).
+ * Returns a Map<shot_id, ISO date string>.
+ */
+export function useLastPracticed() {
+  const [lastPracticedMap, setLastPracticedMap] = useState<Map<string, string>>(new Map())
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchLastPracticed()
+  }, [])
+
+  async function fetchLastPracticed() {
+    setLoading(true)
+    // Get all session blocks with their session dates, grouped by shot_id
+    const { data } = await supabase
+      .from('session_blocks')
+      .select('shot_id, session:sessions(started_at)')
+      .not('shot_id', 'is', null)
+
+    const map = new Map<string, string>()
+    for (const row of data ?? []) {
+      const shotId = row.shot_id as string
+      const date = (row.session as any)?.started_at as string | undefined
+      if (!date) continue
+      const existing = map.get(shotId)
+      if (!existing || date > existing) {
+        map.set(shotId, date)
+      }
+    }
+    setLastPracticedMap(map)
+    setLoading(false)
+  }
+
+  return { lastPracticedMap, loading }
 }

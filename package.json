@@ -9,7 +9,10 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "seed": "tsx scripts/seed.ts",
-    "seed:assessments": "tsx scripts/seed-assessments.ts"
+    "seed:assessments": "tsx scripts/seed-assessments.ts",
+    "db:push": "supabase db push",
+    "db:migrate": "supabase migration new",
+    "db:status": "supabase migration list"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.97.0",

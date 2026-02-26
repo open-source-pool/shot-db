@@ -18,6 +18,7 @@ export function useShots() {
       .select(`
         *,
         images:shot_images(*),
+        variations:shot_variations(*, image:shot_images(*)),
         tags:shot_tags(tag:tags(*))
       `)
       .order('title')
@@ -56,6 +57,7 @@ export function useShot(slug: string | undefined) {
       .select(`
         *,
         images:shot_images(*),
+        variations:shot_variations(*, image:shot_images(*)),
         tags:shot_tags(tag:tags(*))
       `)
       .eq('slug', s)

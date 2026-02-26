@@ -2,9 +2,10 @@ import { Link } from 'react-router'
 import type { Shot } from '../types'
 import { FREQUENCY_LABELS } from '../types'
 import { getImageUrl } from '../lib/supabase'
+import { getShotDisplayImage } from '../lib/variations'
 
 export function ShotCard({ shot }: { shot: Shot }) {
-  const primaryImage = shot.images?.find((img) => img.is_primary) ?? shot.images?.[0]
+  const primaryImage = getShotDisplayImage(shot)
 
   return (
     <Link
@@ -42,9 +43,9 @@ export function ShotCard({ shot }: { shot: Shot }) {
           <span className="text-xs text-on-surface-secondary">
             {FREQUENCY_LABELS[shot.frequency]}
           </span>
-          {(shot.images?.length ?? 0) > 1 && (
+          {(shot.variations?.length ?? 0) > 1 && (
             <span className="text-xs text-on-surface-secondary">
-              {shot.images!.length} vars
+              {shot.variations!.length} vars
             </span>
           )}
         </div>
