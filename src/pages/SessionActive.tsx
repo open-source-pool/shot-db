@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router'
 import { useSessionById, updateBlock } from '../hooks/useSession'
 import { getImageUrl } from '../lib/supabase'
-import type { SessionBlock, ShotImage } from '../types'
+import { getDefaultVariation } from '../lib/variations'
+import type { SessionBlock, ShotVariation } from '../types'
 
 export function SessionActive() {
   const { id } = useParams<{ id: string }>()
@@ -14,7 +15,7 @@ export function SessionActive() {
   const intervalRef = useRef<ReturnType<typeof setInterval>>(null)
   const [editingField, setEditingField] = useState<'attempts' | 'successes' | null>(null)
   const [editValue, setEditValue] = useState('')
-  const [selectedImageId, setSelectedImageId] = useState<string | null>(null)
+  const [selectedVariationId, setSelectedVariationId] = useState<string | null>(null)
 
   // Timer
   useEffect(() => {
@@ -28,18 +29,18 @@ export function SessionActive() {
     }
   }, [running])
 
-  // Reset selected image when block changes
+  // Reset selected variation when block changes
   useEffect(() => {
     if (!session) return
     const blocks = session.blocks ?? []
     const block = blocks[currentBlockIndex]
-    if (block?.shot_image_id) {
-      setSelectedImageId(block.shot_image_id)
-    } else if (block?.shot?.images?.length) {
-      const primary = block.shot.images.find((i) => i.is_primary) ?? block.shot.images[0]
-      setSelectedImageId(primary.id)
+    if (block?.shot_variation_id) {
+      setSelectedVariationId(block.shot_variation_id)
+    } else if (block?.shot) {
+      const defaultVar = getDefaultVariation(block.shot)
+      setSelectedVariationId(defaultVar?.id ?? null)
     } else {
-      setSelectedImageId(null)
+      setSelectedVariationId(null)
     }
   }, [currentBlockIndex, session])
 
@@ -75,10 +76,11 @@ export function SessionActive() {
   }
 
   const shot = block.shot
-  const images = shot?.images ?? []
-  const currentImage = images.find((i) => i.id === selectedImageId)
-    ?? images.find((i) => i.is_primary)
-    ?? images[0]
+  const variations = shot?.variations ?? []
+  const currentVariation = variations.find((v) => v.id === selectedVariationId)
+    ?? variations.find((v) => v.is_default)
+    ?? variations[0]
+  const currentImage = currentVariation?.image ?? null
   const blockDurationSec = block.duration_minutes * 60
 
   // Calculate cumulative time for current block
@@ -89,10 +91,10 @@ export function SessionActive() {
   const blockElapsed = elapsed - priorMinutes * 60
   const blockRemaining = Math.max(0, blockDurationSec - blockElapsed)
 
-  async function selectVariation(image: ShotImage) {
+  async function selectVariation(variation: ShotVariation) {
     if (!block) return
-    setSelectedImageId(image.id)
-    await updateBlock(block.id, { shot_image_id: image.id })
+    setSelectedVariationId(variation.id)
+    await updateBlock(block.id, { shot_variation_id: variation.id })
     refetch()
   }
 
@@ -191,33 +193,38 @@ export function SessionActive() {
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-500">
-              No image
+              {currentVariation ? currentVariation.title : 'No image'}
             </div>
           )}
         </div>
       )}
 
-      {/* Variation picker thumbnails */}
-      {shot && images.length > 1 && (
+      {/* Variation picker */}
+      {shot && variations.length > 1 && (
         <div className="mx-4 mb-4">
           <div className="flex gap-2 overflow-x-auto py-1">
-            {images.map((img) => {
-              const isSelected = img.id === (selectedImageId ?? currentImage?.id)
+            {variations.map((v) => {
+              const isSelected = v.id === (selectedVariationId ?? currentVariation?.id)
               return (
                 <button
-                  key={img.id}
-                  onClick={() => selectVariation(img)}
-                  className={`shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-colors ${
+                  key={v.id}
+                  onClick={() => selectVariation(v)}
+                  className={`shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-lg border-2 transition-colors ${
                     isSelected
-                      ? 'border-accent'
+                      ? 'border-accent bg-accent/5'
                       : 'border-transparent opacity-60 hover:opacity-100'
                   }`}
                 >
-                  <img
-                    src={getImageUrl(img.storage_path)}
-                    alt={img.file_name}
-                    className="w-full h-full object-cover"
-                  />
+                  {v.image && (
+                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-black shrink-0">
+                      <img
+                        src={getImageUrl(v.image.storage_path)}
+                        alt={v.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <span className="text-xs font-medium max-w-[80px] truncate">{v.title}</span>
                 </button>
               )
             })}
@@ -240,8 +247,8 @@ export function SessionActive() {
           </h2>
           <span className="text-xs text-on-surface-secondary capitalize">
             {block.block_type} &middot; {block.duration_minutes} min
-            {currentImage && images.length > 1 && (
-              <> &middot; {currentImage.file_name.replace(/\.[^.]+$/, '')}</>
+            {currentVariation && variations.length > 1 && (
+              <> &middot; {currentVariation.title}</>
             )}
           </span>
         </div>

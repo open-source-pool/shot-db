@@ -148,7 +148,7 @@ async function seed() {
       }
 
       // Insert image metadata
-      const { error: imgErr } = await supabase.from('shot_images').upsert(
+      const { data: imgRow, error: imgErr } = await supabase.from('shot_images').upsert(
         {
           shot_id: shotId,
           file_name: img.fileName,
@@ -158,22 +158,39 @@ async function seed() {
           sort_order: i,
         },
         { onConflict: 'shot_id,file_name', ignoreDuplicates: true }
-      )
+      ).select('id').single()
+
+      let imageId: string | null = imgRow?.id ?? null
 
       if (imgErr) {
         // If upsert fails due to no unique constraint, try insert
-        await supabase.from('shot_images').insert({
+        const { data: insertedImg } = await supabase.from('shot_images').insert({
           shot_id: shotId,
           file_name: img.fileName,
           storage_path: storagePath,
           side: img.side,
           is_primary: img.isPrimary,
           sort_order: i,
-        })
+        }).select('id').single()
+        imageId = insertedImg?.id ?? null
       }
+
+      // Create a variation for this image
+      const variationTitle = img.fileName
+        .replace(/\.[^.]+$/, '')       // strip extension
+        .replace(/[-_]/g, ' ')         // dashes/underscores → spaces
+        .replace(/\b\w/g, (c) => c.toUpperCase()) // title case
+
+      await supabase.from('shot_variations').insert({
+        shot_id: shotId,
+        title: variationTitle,
+        image_id: imageId,
+        is_default: img.isPrimary,
+        sort_order: i,
+      })
     }
 
-    console.log(`  ✓ ${shot.slug} (${shot.images.length} images)`)
+    console.log(`  ✓ ${shot.slug} (${shot.images.length} images, ${shot.images.length} variations)`)
   }
 
   console.log('\nSeed complete!')

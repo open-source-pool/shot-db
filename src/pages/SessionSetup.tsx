@@ -2,17 +2,19 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { useShots } from '../hooks/useShots'
 import { useAssessments } from '../hooks/useAssessments'
-import { getSessionCount } from '../hooks/useSessions'
+import { getSessionCount, useLastPracticed } from '../hooks/useSessions'
 import { createSession, createSessionBlocks } from '../hooks/useSession'
 import { planSession } from '../lib/session-planner'
 import { prioritizeShots } from '../lib/scoring'
 import { getImageUrl } from '../lib/supabase'
+import { getShotDisplayImage } from '../lib/variations'
 import type { PlanBlock } from '../lib/session-planner'
 import type { Shot } from '../types'
 
 export function SessionSetup() {
   const { shots, loading: shotsLoading } = useShots()
   const { assessments, loading: assessLoading } = useAssessments()
+  const { lastPracticedMap, loading: lpLoading } = useLastPracticed()
   const [minutes, setMinutes] = useState(90)
   const [sessionNumber, setSessionNumber] = useState<number | null>(null)
   const [plan, setPlan] = useState<PlanBlock[] | null>(null)
@@ -20,7 +22,7 @@ export function SessionSetup() {
   const [swappingIndex, setSwappingIndex] = useState<number | null>(null)
   const navigate = useNavigate()
 
-  const loading = shotsLoading || assessLoading
+  const loading = shotsLoading || assessLoading || lpLoading
 
   // Auto-derive session number from past session count
   useEffect(() => {
@@ -31,7 +33,7 @@ export function SessionSetup() {
 
   function handleGenerate() {
     if (sessionNumber === null) return
-    const result = planSession({ shots, assessments, minutes, sessionNumber })
+    const result = planSession({ shots, assessments, minutes, sessionNumber, lastPracticedMap })
     setPlan(result.blocks)
     setSwappingIndex(null)
   }
@@ -42,7 +44,7 @@ export function SessionSetup() {
     const usedIds = new Set(
       plan.filter((b) => b.shot).map((b) => b.shot!.id)
     )
-    const prioritized = prioritizeShots(shots, assessments)
+    const prioritized = prioritizeShots(shots, assessments, lastPracticedMap)
     return prioritized
       .filter((s) => !usedIds.has(s.shot.id))
       .map((s) => s.shot)
@@ -82,6 +84,7 @@ export function SessionSetup() {
     const blocks = plan.map((b, i) => ({
       shot_id: b.shot?.id ?? null,
       shot_image_id: null,
+      shot_variation_id: null,
       block_type: b.blockType,
       duration_minutes: b.durationMinutes,
       attempts: 0,
@@ -98,7 +101,7 @@ export function SessionSetup() {
   const availableShots = getAvailableShots()
 
   function getPrimaryImage(shot: Shot) {
-    return shot.images?.find((i) => i.is_primary) ?? shot.images?.[0]
+    return getShotDisplayImage(shot)
   }
 
   return (
@@ -228,9 +231,9 @@ export function SessionSetup() {
                         </p>
                       )}
                       {/* Show variation count */}
-                      {block.shot?.images && block.shot.images.length > 1 && (
+                      {block.shot?.variations && block.shot.variations.length > 1 && (
                         <p className="text-xs text-accent mt-1">
-                          {block.shot.images.length} variations available
+                          {block.shot.variations.length} variations available
                         </p>
                       )}
                     </div>

@@ -53,6 +53,7 @@ export function AddShot() {
     }
 
     // Upload image if provided
+    let imageId: string | null = null
     if (imageFile && shot) {
       const storagePath = `${slug}/${imageFile.name}`
       const { error: uploadErr } = await supabase.storage
@@ -60,15 +61,27 @@ export function AddShot() {
         .upload(storagePath, imageFile, { upsert: true })
 
       if (!uploadErr) {
-        await supabase.from('shot_images').insert({
+        const { data: imgRow } = await supabase.from('shot_images').insert({
           shot_id: shot.id,
           file_name: imageFile.name,
           storage_path: storagePath,
           side: 'center',
           is_primary: true,
           sort_order: 0,
-        })
+        }).select('id').single()
+        imageId = imgRow?.id ?? null
       }
+    }
+
+    // Create a default variation
+    if (shot) {
+      await supabase.from('shot_variations').insert({
+        shot_id: shot.id,
+        title: 'Default',
+        image_id: imageId,
+        is_default: true,
+        sort_order: 0,
+      })
     }
 
     setSaving(false)
