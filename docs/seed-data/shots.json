@@ -1,0 +1,632 @@
+[
+  {
+    "seedId": "shot-001",
+    "slug": "3-rail-stun-draw",
+    "title": "3-rail-stun-draw",
+    "description": "TODO: shot setup is unclear here",
+    "setupText": "TODO: shot setup is unclear here",
+    "status": "active",
+    "frequency": 3,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "3-rail-stun-draw.png",
+        "relativePath": "assets/3-rail-stun-draw.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-002",
+    "slug": "blind-rolling-cut",
+    "title": "blind-rolling-cut",
+    "description": "Practice pattern for blind rolling cut",
+    "setupText": "Reference setup from blind-rolling-cut note.",
+    "status": "active",
+    "frequency": 3,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "blind-rolling-cut.png",
+        "relativePath": "assets/blind-rolling-cut.png",
+        "side": "center",
+        "isPrimary": true
+      },
+      {
+        "fileName": "blind-rolling-cut-1.png",
+        "relativePath": "assets/blind-rolling-cut-1.png",
+        "side": "center",
+        "isPrimary": false
+      }
+    ]
+  },
+  {
+    "seedId": "shot-003",
+    "slug": "blind-stun-out",
+    "title": "blind-stun-out",
+    "description": "Practice pattern for blind stun out",
+    "setupText": "Reference setup from blind-stun-out note.",
+    "status": "pending",
+    "frequency": 2,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "blind-stun-out.png",
+        "relativePath": "assets/blind-stun-out.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-004",
+    "slug": "bulk-return-1",
+    "title": "bulk-return-1",
+    "description": "Practice pattern for bulk return 1",
+    "setupText": "Reference setup from bulk-return-1 note.",
+    "status": "active",
+    "frequency": 2,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "bulk-return-1.png",
+        "relativePath": "assets/bulk-return-1.png",
+        "side": "center",
+        "isPrimary": true
+      },
+      {
+        "fileName": "bulk-return-1-1.png",
+        "relativePath": "assets/bulk-return-1-1.png",
+        "side": "center",
+        "isPrimary": false
+      },
+      {
+        "fileName": "bulk-return-1-2.png",
+        "relativePath": "assets/bulk-return-1-2.png",
+        "side": "center",
+        "isPrimary": false
+      }
+    ]
+  },
+  {
+    "seedId": "shot-005",
+    "slug": "check-side-stun-out",
+    "title": "check-side-stun-out",
+    "description": "Practice pattern for check side stun out",
+    "setupText": "Reference setup from check-side-stun-out note.",
+    "status": "active",
+    "frequency": 1,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "check-side-stun-out.png",
+        "relativePath": "assets/check-side-stun-out.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-006",
+    "slug": "corner-hook",
+    "title": "corner-hook",
+    "description": "Practice pattern for corner hook",
+    "setupText": "Reference setup from corner-hook note.",
+    "status": "pending",
+    "frequency": 2,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "corner-hook.png",
+        "relativePath": "assets/corner-hook.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-007",
+    "slug": "drag-reverse-spin",
+    "title": "drag-reverse-spin",
+    "description": "Practice pattern for drag reverse spin",
+    "setupText": "Reference setup from drag-reverse-spin note.",
+    "status": "active",
+    "frequency": 1,
+    "tags": [
+      "\"#shotdb-included\""
+    ],
+    "images": [
+      {
+        "fileName": "drag-reverse-spin-1.png",
+        "relativePath": "assets/drag-reverse-spin-1.png",
+        "side": "center",
+        "isPrimary": true
+      },
+      {
+        "fileName": "2025-12-04-4.png",
+        "relativePath": "assets/2025-12-04-4.png",
+        "side": "center",
+        "isPrimary": false
+      },
+      {
+        "fileName": "2025-12-04-3.png",
+        "relativePath": "assets/2025-12-04-3.png",
+        "side": "center",
+        "isPrimary": false
+      }
+    ]
+  },
+  {
+    "seedId": "shot-008",
+    "slug": "follow-inside",
+    "title": "follow-inside",
+    "description": "Practice pattern for follow inside",
+    "setupText": "Reference setup from follow-inside note.",
+    "status": "active",
+    "frequency": 3,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "follow-inside.png",
+        "relativePath": "assets/follow-inside.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-009",
+    "slug": "left-cut",
+    "title": "left-cut",
+    "description": "Practice pattern for left cut",
+    "setupText": "Reference setup from left-cut note.",
+    "status": "active",
+    "frequency": 2,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "left-cut.png",
+        "relativePath": "assets/left-cut.png",
+        "side": "left",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-010",
+    "slug": "long-long-back-to-9",
+    "title": "long-long-back-to-9",
+    "description": "Practice pattern for long long back to 9",
+    "setupText": "Reference setup from long-long-back-to-9 note.",
+    "status": "pending",
+    "frequency": 2,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "long-long-back-to-9.png",
+        "relativePath": "assets/long-long-back-to-9.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-011",
+    "slug": "long-long-soft",
+    "title": "long-long-soft",
+    "description": "Practice pattern for long long soft",
+    "setupText": "Reference setup from long-long-soft note.",
+    "status": "active",
+    "frequency": 2,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "long-long-soft.png",
+        "relativePath": "assets/long-long-soft.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-012",
+    "slug": "long-long",
+    "title": "long-long",
+    "description": "Practice pattern for long long",
+    "setupText": "Reference setup from long-long note.",
+    "status": "active",
+    "frequency": 2,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "long-long.png",
+        "relativePath": "assets/long-long.png",
+        "side": "center",
+        "isPrimary": true
+      },
+      {
+        "fileName": "long-long 1.png",
+        "relativePath": "assets/long-long 1.png",
+        "side": "center",
+        "isPrimary": false
+      }
+    ]
+  },
+  {
+    "seedId": "shot-013",
+    "slug": "long-short-long-up-table",
+    "title": "long-short-long-up-table",
+    "description": "Practice pattern for long short long up table",
+    "setupText": "Reference setup from long-short-long-up-table note.",
+    "status": "active",
+    "frequency": 2,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "long-short-long-up-table.png",
+        "relativePath": "assets/long-short-long-up-table.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-014",
+    "slug": "md-straight-draw",
+    "title": "md-straight-draw",
+    "description": "Practice pattern for md straight draw",
+    "setupText": "Reference setup from md-straight-draw note.",
+    "status": "active",
+    "frequency": 2,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "md-straight-draw.png",
+        "relativePath": "assets/md-straight-draw.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-015",
+    "slug": "off-angle-side",
+    "title": "off-angle-side",
+    "description": "off angle cb control w/ spin",
+    "setupText": "Reference setup from off-angle-side note.",
+    "status": "active",
+    "frequency": 2,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "off-angle-side.png",
+        "relativePath": "assets/off-angle-side.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-016",
+    "slug": "pocket-hanger",
+    "title": "pocket-hanger",
+    "description": "pocket hanged think clip",
+    "setupText": "Reference setup from pocket-hanger note.",
+    "status": "active",
+    "frequency": 2,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "pocket-hanger.png",
+        "relativePath": "assets/pocket-hanger.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-017",
+    "slug": "rail-blind-2-rails",
+    "title": "rail-blind-2-rails",
+    "description": "rail bridge, blind pocket, 2 rail natural shape",
+    "setupText": "Reference setup from rail-blind-2-rails note.",
+    "status": "active",
+    "frequency": 1,
+    "tags": [
+      "\"#shotdb-included\""
+    ],
+    "images": [
+      {
+        "fileName": "rail-blind-2-rails.png",
+        "relativePath": "assets/rail-blind-2-rails.png",
+        "side": "center",
+        "isPrimary": true
+      },
+      {
+        "fileName": "rail-blind-2-rails-1.png",
+        "relativePath": "assets/rail-blind-2-rails-1.png",
+        "side": "center",
+        "isPrimary": false
+      },
+      {
+        "fileName": "rail-blind-2-rails-2.png",
+        "relativePath": "assets/rail-blind-2-rails-2.png",
+        "side": "center",
+        "isPrimary": false
+      }
+    ]
+  },
+  {
+    "seedId": "shot-018",
+    "slug": "rail-clinger",
+    "title": "rail-clinger",
+    "description": "Practice pattern for rail clinger",
+    "setupText": "Reference setup from rail-clinger note.",
+    "status": "active",
+    "frequency": 3,
+    "tags": [
+      "aiming"
+    ],
+    "images": [
+      {
+        "fileName": "rail-clinger.png",
+        "relativePath": "assets/rail-clinger.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-019",
+    "slug": "running-side-stun-center",
+    "title": "running-side-stun-center",
+    "description": "Practice pattern for running side stun center",
+    "setupText": "Reference setup from running-side-stun-center note.",
+    "status": "active",
+    "frequency": 3,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "running-side-stun-center.png",
+        "relativePath": "assets/running-side-stun-center.png",
+        "side": "center",
+        "isPrimary": true
+      },
+      {
+        "fileName": "running-side-stun-center-1.png",
+        "relativePath": "assets/running-side-stun-center-1.png",
+        "side": "center",
+        "isPrimary": false
+      }
+    ]
+  },
+  {
+    "seedId": "shot-020",
+    "slug": "short-rail-low-outside",
+    "title": "short-rail-low-outside",
+    "description": "Practice pattern for short rail low outside",
+    "setupText": "Reference setup from short-rail-low-outside note.",
+    "status": "pending",
+    "frequency": 2,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "short-rail-low-outside-2.png",
+        "relativePath": "assets/short-rail-low-outside-2.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-021",
+    "slug": "short-rail-wide-cut",
+    "title": "short-rail-wide-cut",
+    "description": "Practice pattern for short rail wide cut",
+    "setupText": "Reference setup from short-rail-wide-cut note.",
+    "status": "pending",
+    "frequency": 2,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "short-rail-wide-cut.png",
+        "relativePath": "assets/short-rail-wide-cut.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-022",
+    "slug": "side-1-rail",
+    "title": "side-1-rail",
+    "description": "Practice pattern for side 1 rail",
+    "setupText": "Reference setup from side-1-rail note.",
+    "status": "pending",
+    "frequency": 2,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "side-1-rail.png",
+        "relativePath": "assets/side-1-rail.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-023",
+    "slug": "slow-roll",
+    "title": "slow-roll",
+    "description": "slow drop in",
+    "setupText": "* Straight shot\n* mis-perceived cueball center\n* wrong alignment\n* the stroke itself (visualization issue)",
+    "status": "active",
+    "frequency": 3,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "slow-roll.png",
+        "relativePath": "assets/slow-roll.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-024",
+    "slug": "spin-off",
+    "title": "spin-off",
+    "description": "spin off the rail",
+    "setupText": "Reference setup from spin-off note.",
+    "status": "active",
+    "frequency": 1,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "spin-off-1.png",
+        "relativePath": "assets/spin-off-1.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-025",
+    "slug": "straight-draw-extreme-side",
+    "title": "straight-draw-extreme-side",
+    "description": "for going up table",
+    "setupText": "Reference setup from straight-draw-extreme-side note.",
+    "status": "active",
+    "frequency": 2,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "straight-draw-extreme-side.png",
+        "relativePath": "assets/straight-draw-extreme-side.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-026",
+    "slug": "stun-rail-clinger",
+    "title": "stun-rail-clinger",
+    "description": "Practice pattern for stun rail clinger",
+    "setupText": "Reference setup from stun-rail-clinger note.",
+    "status": "pending",
+    "frequency": 2,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "stun-rail-clinger.png",
+        "relativePath": "assets/stun-rail-clinger.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-027",
+    "slug": "thin-clip",
+    "title": "thin-clip",
+    "description": "super thin clip at controlled speed",
+    "setupText": "Reference setup from thin-clip note.",
+    "status": "active",
+    "frequency": 3,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "thin-clip.png",
+        "relativePath": "assets/thin-clip.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-028",
+    "slug": "thin-cut-2-rail-back",
+    "title": "thin-cut-2-rail-back",
+    "description": "Practice pattern for thin cut 2 rail back",
+    "setupText": "Reference setup from thin-cut-2-rail-back note.",
+    "status": "pending",
+    "frequency": 2,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "thin-cut-2-rail-back.png",
+        "relativePath": "assets/thin-cut-2-rail-back.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-029",
+    "slug": "thin-spin-opp-rail",
+    "title": "thin-spin-opp-rail",
+    "description": "thin spin back to the opposite short rail",
+    "setupText": "Reference setup from thin-spin-opp-rail note.",
+    "status": "active",
+    "frequency": 3,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "thin-spin-opp-rail.png",
+        "relativePath": "assets/thin-spin-opp-rail.png",
+        "side": "center",
+        "isPrimary": true
+      },
+      {
+        "fileName": "thin-spin-opp-rail 1.png",
+        "relativePath": "assets/thin-spin-opp-rail 1.png",
+        "side": "center",
+        "isPrimary": false
+      }
+    ]
+  },
+  {
+    "seedId": "shot-030",
+    "slug": "up-down-safe",
+    "title": "up-down-safe",
+    "description": "Practice pattern for up down safe",
+    "setupText": "Reference setup from up-down-safe note.",
+    "status": "active",
+    "frequency": 3,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "up-down-safe.png",
+        "relativePath": "assets/up-down-safe.png",
+        "side": "center",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "seedId": "shot-031",
+    "slug": "yoyo",
+    "title": "yoyo",
+    "description": "yoyo drill shot",
+    "setupText": "Reference setup from yoyo note.",
+    "status": "active",
+    "frequency": 3,
+    "tags": [],
+    "images": [
+      {
+        "fileName": "yoyo.png",
+        "relativePath": "assets/yoyo.png",
+        "side": "center",
+        "isPrimary": true
+      },
+      {
+        "fileName": "yoyo-1.png",
+        "relativePath": "assets/yoyo-1.png",
+        "side": "center",
+        "isPrimary": false
+      }
+    ]
+  }
+]
