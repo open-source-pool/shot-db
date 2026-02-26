@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { supabase } from '../lib/supabase'
+import { ImageUpload } from '../components/ImageUpload'
 
 export function AddShot() {
   const navigate = useNavigate()
@@ -92,6 +93,11 @@ export function AddShot() {
           />
         </div>
 
+        <ImageUpload
+          onFileSelect={(f) => setImageFile(f)}
+          currentFile={imageFile}
+        />
+
         <div>
           <label className="text-sm text-on-surface-secondary block mb-1">
             Description
@@ -118,47 +124,50 @@ export function AddShot() {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-sm text-on-surface-secondary block mb-1">
-              Frequency
-            </label>
-            <select
-              value={frequency}
-              onChange={(e) => setFrequency(Number(e.target.value) as 1 | 2 | 3)}
-              className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-on-surface text-sm"
-            >
-              <option value={1}>Low</option>
-              <option value={2}>Medium</option>
-              <option value={3}>High</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="text-sm text-on-surface-secondary block mb-1">
-              Status
-            </label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as 'active' | 'pending')}
-              className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-on-surface text-sm"
-            >
-              <option value="pending">Pending</option>
-              <option value="active">Active</option>
-            </select>
+        <div>
+          <label className="text-sm text-on-surface-secondary block mb-1">
+            Frequency
+          </label>
+          <div className="flex gap-2">
+            {([1, 2, 3] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFrequency(f)}
+                className={`flex-1 py-2 text-sm rounded-lg border transition-colors ${
+                  frequency === f
+                    ? 'border-accent bg-accent/10 text-accent font-medium'
+                    : 'border-border text-on-surface-secondary'
+                }`}
+              >
+                {f === 1 ? 'Low' : f === 2 ? 'Medium' : 'High'}
+              </button>
+            ))}
           </div>
         </div>
 
         <div>
           <label className="text-sm text-on-surface-secondary block mb-1">
-            Shot Image
+            Status
           </label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-            className="w-full text-sm text-on-surface-secondary"
-          />
+          <div className="flex gap-2">
+            {(['pending', 'active'] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setStatus(s)}
+                className={`flex-1 py-2 text-sm rounded-lg border transition-colors capitalize ${
+                  status === s
+                    ? s === 'active'
+                      ? 'border-success bg-success/10 text-success font-medium'
+                      : 'border-warning bg-warning/10 text-warning font-medium'
+                    : 'border-border text-on-surface-secondary'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
 
         {error && <p className="text-danger text-sm">{error}</p>}
@@ -166,7 +175,7 @@ export function AddShot() {
         <button
           type="submit"
           disabled={saving}
-          className="w-full py-2 bg-accent text-white rounded-lg hover:bg-accent-hover transition-colors disabled:opacity-50"
+          className="w-full py-3 bg-accent text-white rounded-lg font-semibold hover:bg-accent-hover transition-colors disabled:opacity-50"
         >
           {saving ? 'Saving...' : 'Add Shot'}
         </button>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router'
+import { useParams, useNavigate, Link } from 'react-router'
 import { useSessionById, updateBlock } from '../hooks/useSession'
 import { getImageUrl } from '../lib/supabase'
 import type { SessionBlock } from '../types'
@@ -12,6 +12,8 @@ export function SessionActive() {
   const [elapsed, setElapsed] = useState(0)
   const [running, setRunning] = useState(true)
   const intervalRef = useRef<ReturnType<typeof setInterval>>(null)
+  const [editingField, setEditingField] = useState<'attempts' | 'successes' | null>(null)
+  const [editValue, setEditValue] = useState('')
 
   // Timer
   useEffect(() => {
@@ -38,12 +40,20 @@ export function SessionActive() {
         <p className="text-on-surface-secondary mb-4">
           Total time: {formatTime(elapsed)}
         </p>
-        <button
-          onClick={() => navigate('/')}
-          className="px-4 py-2 bg-accent text-white rounded-lg"
-        >
-          Back to Dashboard
-        </button>
+        <div className="flex gap-3 justify-center">
+          <Link
+            to={`/session/${id}/review`}
+            className="px-4 py-2 bg-accent text-white rounded-lg"
+          >
+            Review Session
+          </Link>
+          <button
+            onClick={() => navigate('/')}
+            className="px-4 py-2 bg-surface-secondary border border-border rounded-lg"
+          >
+            Dashboard
+          </button>
+        </div>
       </div>
     )
   }
@@ -72,12 +82,39 @@ export function SessionActive() {
     refetch()
   }
 
+  async function handleEditSave() {
+    if (!block || !editingField) return
+    const val = Math.max(0, parseInt(editValue) || 0)
+    const updates: Partial<Pick<SessionBlock, 'attempts' | 'successes'>> = {}
+
+    if (editingField === 'attempts') {
+      updates.attempts = val
+      // Ensure successes doesn't exceed attempts
+      if ((block.successes ?? 0) > val) {
+        updates.successes = val
+      }
+    } else {
+      // Ensure successes doesn't exceed attempts
+      updates.successes = Math.min(val, block.attempts ?? 0)
+    }
+
+    await updateBlock(block.id, updates)
+    setEditingField(null)
+    setEditValue('')
+    refetch()
+  }
+
+  function startEdit(field: 'attempts' | 'successes') {
+    setEditingField(field)
+    setEditValue(String(field === 'attempts' ? (block?.attempts ?? 0) : (block?.successes ?? 0)))
+  }
+
   function nextBlock() {
     if (currentBlockIndex < blocks.length - 1) {
       setCurrentBlockIndex((i) => i + 1)
     } else {
       setRunning(false)
-      setCurrentBlockIndex(blocks.length) // triggers complete view
+      setCurrentBlockIndex(blocks.length)
     }
   }
 
@@ -121,7 +158,7 @@ export function SessionActive() {
 
       {/* Shot image */}
       {shot && (
-        <div className="aspect-[4/3] bg-black mx-4 rounded-xl overflow-hidden mb-4">
+        <div className="aspect-[4/3] sm:aspect-[16/9] max-h-[50vh] bg-black mx-4 rounded-xl overflow-hidden mb-4">
           {primaryImage ? (
             <img
               src={getImageUrl(primaryImage.storage_path)}
@@ -170,15 +207,62 @@ export function SessionActive() {
             </div>
 
             <div className="flex justify-around text-center">
-              <div>
-                <div className="text-2xl font-bold">{block.attempts ?? 0}</div>
-                <div className="text-xs text-on-surface-secondary">Attempts</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-success">{block.successes ?? 0}</div>
-                <div className="text-xs text-on-surface-secondary">Hits</div>
-              </div>
-              <div>
+              {/* Attempts — tap to edit */}
+              <button
+                onClick={() => startEdit('attempts')}
+                className="p-2 rounded-lg hover:bg-surface-secondary transition-colors"
+              >
+                {editingField === 'attempts' ? (
+                  <div className="flex flex-col items-center gap-1">
+                    <input
+                      type="number"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={handleEditSave}
+                      onKeyDown={(e) => e.key === 'Enter' && handleEditSave()}
+                      autoFocus
+                      className="w-16 text-center text-xl font-bold border border-accent rounded px-1 bg-surface text-on-surface"
+                      min={0}
+                    />
+                    <div className="text-xs text-accent">Enter to save</div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">{block.attempts ?? 0}</div>
+                    <div className="text-xs text-on-surface-secondary">Attempts</div>
+                  </>
+                )}
+              </button>
+
+              {/* Successes — tap to edit */}
+              <button
+                onClick={() => startEdit('successes')}
+                className="p-2 rounded-lg hover:bg-surface-secondary transition-colors"
+              >
+                {editingField === 'successes' ? (
+                  <div className="flex flex-col items-center gap-1">
+                    <input
+                      type="number"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={handleEditSave}
+                      onKeyDown={(e) => e.key === 'Enter' && handleEditSave()}
+                      autoFocus
+                      className="w-16 text-center text-xl font-bold border border-accent rounded px-1 bg-surface text-on-surface"
+                      min={0}
+                    />
+                    <div className="text-xs text-accent">Enter to save</div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold text-success">{block.successes ?? 0}</div>
+                    <div className="text-xs text-on-surface-secondary">Hits</div>
+                  </>
+                )}
+              </button>
+
+              {/* Rate */}
+              <div className="p-2">
                 <div className="text-2xl font-bold">
                   {block.attempts
                     ? `${Math.round(((block.successes ?? 0) / block.attempts) * 100)}%`
@@ -187,6 +271,10 @@ export function SessionActive() {
                 <div className="text-xs text-on-surface-secondary">Rate</div>
               </div>
             </div>
+
+            <p className="text-xs text-on-surface-secondary text-center">
+              Tap a number to correct it
+            </p>
           </>
         )}
       </div>
