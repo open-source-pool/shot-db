@@ -11,7 +11,11 @@ node_modules
 dist
 dist-ssr
 *.local
+
+# Environment / secrets
 .env
+.env.*
+!.env.example
 
 # Editor directories and files
 .vscode/*
@@ -23,3 +27,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Backup files
+*~
+*.bak
+*.orig
+
+# Claude Code
+.claude/
+
+# OS
+Thumbs.db
