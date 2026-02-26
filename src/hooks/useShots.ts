@@ -47,7 +47,9 @@ export function useShot(slug: string | undefined) {
     fetchShot(slug)
   }, [slug])
 
-  async function fetchShot(slug: string) {
+  async function fetchShot(slugParam?: string) {
+    const s = slugParam ?? slug
+    if (!s) return
     setLoading(true)
     const { data, error: err } = await supabase
       .from('shots')
@@ -56,7 +58,7 @@ export function useShot(slug: string | undefined) {
         images:shot_images(*),
         tags:shot_tags(tag:tags(*))
       `)
-      .eq('slug', slug)
+      .eq('slug', s)
       .single()
 
     if (err) {
@@ -70,5 +72,5 @@ export function useShot(slug: string | undefined) {
     setLoading(false)
   }
 
-  return { shot, loading, error }
+  return { shot, loading, error, refetch: fetchShot }
 }

@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 const navItems = [
   { to: '/', label: 'Home' },
   { to: '/shots', label: 'Shots' },
-  { to: '/session/new', label: 'Session' },
+  { to: '/session/new', label: 'Train' },
+  { to: '/sessions', label: 'History' },
   { to: '/assess', label: 'Assess' },
 ]
 
@@ -36,26 +37,28 @@ export function Layout() {
         </button>
       </header>
 
-      <main className="flex-1 pb-20">
-        <Outlet />
+      <main className="flex-1 pb-24">
+        <div className="max-w-3xl mx-auto">
+          <Outlet />
+        </div>
       </main>
 
       <nav className="fixed bottom-0 inset-x-0 z-30 bg-surface border-t border-border">
-        <div className="flex justify-around py-2 pb-[env(safe-area-inset-bottom)]">
+        <div className="max-w-3xl mx-auto flex justify-around py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.to === '/'}
               className={({ isActive }) =>
-                `flex flex-col items-center px-3 py-1 text-xs transition-colors ${
+                `flex flex-col items-center px-3 py-1.5 text-sm transition-colors ${
                   isActive
                     ? 'text-accent font-semibold'
                     : 'text-on-surface-secondary'
                 }`
               }
             >
-              <span className="text-sm">{item.label}</span>
+              <span>{item.label}</span>
             </NavLink>
           ))}
         </div>

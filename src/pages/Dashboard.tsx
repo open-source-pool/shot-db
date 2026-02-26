@@ -1,37 +1,30 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router'
 import { useShots } from '../hooks/useShots'
 import { useAssessments } from '../hooks/useAssessments'
-import { prioritizeShots } from '../lib/scoring'
-import { getImageUrl } from '../lib/supabase'
+import { getSessionCount } from '../hooks/useSessions'
+import { prioritizeShots, isDueForSession, spacedPeriod } from '../lib/scoring'
+import { FREQUENCY_LABELS } from '../types'
 
 export function Dashboard() {
   const { shots, loading: shotsLoading } = useShots()
   const { assessments, loading: assessLoading } = useAssessments()
+  const [sessionNumber, setSessionNumber] = useState<number | null>(null)
   const loading = shotsLoading || assessLoading
+
+  useEffect(() => {
+    getSessionCount().then((count) => setSessionNumber(count + 1))
+  }, [])
 
   const activeShots = shots.filter((s) => s.status === 'active')
   const prioritized = prioritizeShots(shots, assessments)
   const assessedCount = new Set(assessments.map((a) => a.shot_id)).size
-  const avgScore =
-    assessments.length > 0
-      ? (
-          assessments.reduce((sum, a) => sum + a.aggregate_score, 0) /
-          assessments.length
-        ).toFixed(1)
-      : '—'
 
-  // Score variance
-  const scores = assessments.map((a) => a.aggregate_score)
-  const variance =
-    scores.length > 1
-      ? (() => {
-          const mean = scores.reduce((a, b) => a + b, 0) / scores.length
-          const sqDiffs = scores.map((s) => (s - mean) ** 2)
-          return (sqDiffs.reduce((a, b) => a + b, 0) / scores.length).toFixed(2)
-        })()
-      : '—'
-
-  const weakest = prioritized.slice(0, 3)
+  // Score distribution
+  const scoreDistribution = { 1: 0, 2: 0, 3: 0 }
+  for (const { aggregateScore } of prioritized) {
+    scoreDistribution[aggregateScore as 1 | 2 | 3]++
+  }
 
   return (
     <div className="p-4 space-y-6">
@@ -42,12 +35,54 @@ export function Dashboard() {
       ) : (
         <>
           {/* Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard label="Total Shots" value={activeShots.length} />
+          <div className="grid grid-cols-3 gap-3">
+            <StatCard label="Active Shots" value={activeShots.length} />
             <StatCard label="Assessed" value={assessedCount} />
-            <StatCard label="Avg Score" value={avgScore} />
-            <StatCard label="Variance" value={variance} />
+            <StatCard
+              label="Next Session"
+              value={sessionNumber !== null ? `#${sessionNumber}` : '...'}
+            />
           </div>
+
+          {/* Score distribution bar */}
+          {prioritized.length > 0 && (
+            <div>
+              <h2 className="text-sm font-semibold text-on-surface-secondary mb-2">
+                Score Distribution
+              </h2>
+              <div className="flex rounded-lg overflow-hidden h-6 text-xs font-medium">
+                {scoreDistribution[1] > 0 && (
+                  <div
+                    className="bg-danger/80 text-white flex items-center justify-center"
+                    style={{ width: `${(scoreDistribution[1] / prioritized.length) * 100}%` }}
+                  >
+                    {scoreDistribution[1]}
+                  </div>
+                )}
+                {scoreDistribution[2] > 0 && (
+                  <div
+                    className="bg-warning/80 text-white flex items-center justify-center"
+                    style={{ width: `${(scoreDistribution[2] / prioritized.length) * 100}%` }}
+                  >
+                    {scoreDistribution[2]}
+                  </div>
+                )}
+                {scoreDistribution[3] > 0 && (
+                  <div
+                    className="bg-success/80 text-white flex items-center justify-center"
+                    style={{ width: `${(scoreDistribution[3] / prioritized.length) * 100}%` }}
+                  >
+                    {scoreDistribution[3]}
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-between text-[10px] text-on-surface-secondary mt-1">
+                <span>Score 1 (needs work)</span>
+                <span>Score 2 (developing)</span>
+                <span>Score 3 (solid)</span>
+              </div>
+            </div>
+          )}
 
           {/* Quick actions */}
           <div className="grid grid-cols-2 gap-3">
@@ -65,43 +100,76 @@ export function Dashboard() {
             </Link>
           </div>
 
-          {/* Weakest shots */}
-          {weakest.length > 0 && (
+          {/* Shot performance table */}
+          {prioritized.length > 0 && (
             <div>
               <h2 className="text-sm font-semibold text-on-surface-secondary mb-2">
-                Priority Shots
+                Shot Performance
               </h2>
-              <div className="space-y-2">
-                {weakest.map(({ shot, aggregateScore }) => {
-                  const img =
-                    shot.images?.find((i) => i.is_primary) ?? shot.images?.[0]
+              <div className="border border-border rounded-xl overflow-hidden">
+                {/* Header */}
+                <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 px-3 py-2 bg-surface-secondary text-xs font-semibold text-on-surface-secondary border-b border-border">
+                  <span>Shot</span>
+                  <span className="w-12 text-center">Score</span>
+                  <span className="w-12 text-center">Freq</span>
+                  <span className="w-20 text-center">Next Due</span>
+                </div>
+
+                {/* Rows */}
+                {prioritized.map(({ shot, aggregateScore }) => {
+                  const period = spacedPeriod(aggregateScore)
+                  const nextDue = sessionNumber !== null
+                    ? (() => {
+                        let s = sessionNumber
+                        while (s < sessionNumber + period + 1) {
+                          if (isDueForSession(aggregateScore, s)) return s
+                          s++
+                        }
+                        return s
+                      })()
+                    : null
+                  const isDueNow = sessionNumber !== null && isDueForSession(aggregateScore, sessionNumber)
+
                   return (
                     <Link
                       key={shot.id}
                       to={`/shots/${shot.slug}`}
-                      className="flex items-center gap-3 p-2 rounded-lg border border-border bg-surface-secondary hover:border-accent transition-colors"
+                      className={`grid grid-cols-[1fr_auto_auto_auto] gap-2 px-3 py-2.5 text-sm border-b border-border last:border-b-0 hover:bg-surface-secondary/50 transition-colors ${
+                        isDueNow ? 'bg-accent/5' : ''
+                      }`}
                     >
-                      <div className="w-14 h-14 rounded-lg bg-black overflow-hidden shrink-0">
-                        {img ? (
-                          <img
-                            src={getImageUrl(img.storage_path)}
-                            alt={shot.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : null}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium text-sm truncate">
-                          {shot.title}
-                        </div>
-                        <div className="text-xs text-on-surface-secondary">
-                          Score: {aggregateScore}/3
-                        </div>
-                      </div>
+                      <span className="truncate font-medium">{shot.title}</span>
+                      <span className="w-12 text-center">
+                        <span
+                          className={`inline-block w-6 h-6 rounded-full text-xs font-bold leading-6 text-center ${
+                            aggregateScore === 1
+                              ? 'bg-danger/15 text-danger'
+                              : aggregateScore === 2
+                                ? 'bg-warning/15 text-warning'
+                                : 'bg-success/15 text-success'
+                          }`}
+                        >
+                          {aggregateScore}
+                        </span>
+                      </span>
+                      <span className="w-12 text-center text-xs text-on-surface-secondary leading-6">
+                        {FREQUENCY_LABELS[shot.frequency]}
+                      </span>
+                      <span
+                        className={`w-20 text-center text-xs leading-6 ${
+                          isDueNow ? 'text-accent font-semibold' : 'text-on-surface-secondary'
+                        }`}
+                      >
+                        {isDueNow ? 'Now' : nextDue !== null ? `Sess #${nextDue}` : '—'}
+                      </span>
                     </Link>
                   )
                 })}
               </div>
+
+              <p className="text-[10px] text-on-surface-secondary mt-2">
+                Sorted by priority (lowest score first). Rows highlighted in blue are due in the next session.
+              </p>
             </div>
           )}
         </>
