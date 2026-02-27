@@ -8,6 +8,7 @@ export interface Shot {
   frequency: 1 | 2 | 3
   created_at: string
   images?: ShotImage[]
+  variations?: ShotVariation[]
   tags?: Tag[]
   latest_assessment?: Assessment | null
 }
@@ -20,6 +21,17 @@ export interface ShotImage {
   side: string
   is_primary: boolean
   sort_order: number
+}
+
+export interface ShotVariation {
+  id: string
+  shot_id: string
+  title: string
+  setup_note: string | null
+  image_id: string | null
+  is_default: boolean
+  sort_order: number
+  image?: ShotImage | null
 }
 
 export interface Tag {
@@ -52,7 +64,9 @@ export interface SessionBlock {
   id: string
   session_id: string
   shot_id: string | null
-  block_type: 'warmup' | 'core' | 'variant' | 'reinforcement' | 'cooldown'
+  shot_image_id: string | null
+  shot_variation_id: string | null
+  block_type: 'warmup' | 'core' | 'reinforcement' | 'cooldown'
   duration_minutes: number
   attempts: number
   successes: number
@@ -60,6 +74,8 @@ export interface SessionBlock {
   notes: string | null
   sort_order: number
   shot?: Shot
+  shot_image?: ShotImage
+  shot_variation?: ShotVariation
 }
 
 export type FrequencyLabel = 'Low' | 'Medium' | 'High'

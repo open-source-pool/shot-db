@@ -2,22 +2,25 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router'
 import { useShots } from '../hooks/useShots'
 import { useAssessments } from '../hooks/useAssessments'
-import { getSessionCount } from '../hooks/useSessions'
+import { getSessionCount, useLastPracticed } from '../hooks/useSessions'
 import { prioritizeShots, isDueForSession, spacedPeriod } from '../lib/scoring'
+import { getImageUrl } from '../lib/supabase'
+import { getShotDisplayImage } from '../lib/variations'
 import { FREQUENCY_LABELS } from '../types'
 
 export function Dashboard() {
   const { shots, loading: shotsLoading } = useShots()
   const { assessments, loading: assessLoading } = useAssessments()
+  const { lastPracticedMap, loading: lpLoading } = useLastPracticed()
   const [sessionNumber, setSessionNumber] = useState<number | null>(null)
-  const loading = shotsLoading || assessLoading
+  const loading = shotsLoading || assessLoading || lpLoading
 
   useEffect(() => {
     getSessionCount().then((count) => setSessionNumber(count + 1))
   }, [])
 
   const activeShots = shots.filter((s) => s.status === 'active')
-  const prioritized = prioritizeShots(shots, assessments)
+  const prioritized = prioritizeShots(shots, assessments, lastPracticedMap)
   const assessedCount = new Set(assessments.map((a) => a.shot_id)).size
 
   // Score distribution
@@ -108,7 +111,8 @@ export function Dashboard() {
               </h2>
               <div className="border border-border rounded-xl overflow-hidden">
                 {/* Header */}
-                <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 px-3 py-2 bg-surface-secondary text-xs font-semibold text-on-surface-secondary border-b border-border">
+                <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-2 px-3 py-2 bg-surface-secondary text-xs font-semibold text-on-surface-secondary border-b border-border">
+                  <span className="w-10" />
                   <span>Shot</span>
                   <span className="w-12 text-center">Score</span>
                   <span className="w-12 text-center">Freq</span>
@@ -117,28 +121,44 @@ export function Dashboard() {
 
                 {/* Rows */}
                 {prioritized.map(({ shot, aggregateScore }) => {
-                  const period = spacedPeriod(aggregateScore)
+                  const freq = shot.frequency
+                  const period = spacedPeriod(aggregateScore, freq)
                   const nextDue = sessionNumber !== null
                     ? (() => {
                         let s = sessionNumber
                         while (s < sessionNumber + period + 1) {
-                          if (isDueForSession(aggregateScore, s)) return s
+                          if (isDueForSession(aggregateScore, s, freq)) return s
                           s++
                         }
                         return s
                       })()
                     : null
-                  const isDueNow = sessionNumber !== null && isDueForSession(aggregateScore, sessionNumber)
+                  const isDueNow = sessionNumber !== null && isDueForSession(aggregateScore, sessionNumber, freq)
+                  const primaryImage = getShotDisplayImage(shot)
 
                   return (
                     <Link
                       key={shot.id}
                       to={`/shots/${shot.slug}`}
-                      className={`grid grid-cols-[1fr_auto_auto_auto] gap-2 px-3 py-2.5 text-sm border-b border-border last:border-b-0 hover:bg-surface-secondary/50 transition-colors ${
+                      className={`grid grid-cols-[auto_1fr_auto_auto_auto] gap-2 px-3 py-2.5 text-sm border-b border-border last:border-b-0 hover:bg-surface-secondary/50 transition-colors ${
                         isDueNow ? 'bg-accent/5' : ''
                       }`}
                     >
-                      <span className="truncate font-medium">{shot.title}</span>
+                      <div className="w-10 h-10 rounded-lg bg-surface-secondary overflow-hidden shrink-0 self-center">
+                        {primaryImage ? (
+                          <img
+                            src={getImageUrl(primaryImage.storage_path)}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-on-surface-secondary text-[10px]">
+                            —
+                          </div>
+                        )}
+                      </div>
+                      <span className="truncate font-medium self-center">{shot.title}</span>
                       <span className="w-12 text-center">
                         <span
                           className={`inline-block w-6 h-6 rounded-full text-xs font-bold leading-6 text-center ${
@@ -168,7 +188,7 @@ export function Dashboard() {
               </div>
 
               <p className="text-[10px] text-on-surface-secondary mt-2">
-                Sorted by priority (lowest score first). Rows highlighted in blue are due in the next session.
+                Sorted by priority (unassessed first, then composite score). Blue rows are due next session.
               </p>
             </div>
           )}

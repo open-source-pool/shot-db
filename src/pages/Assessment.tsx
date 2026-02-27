@@ -87,13 +87,18 @@ export function Assessment() {
       <div className="px-4 pt-3 pb-2 flex items-center justify-between">
         <h1 className="text-lg font-bold">Assess</h1>
         <span className="text-sm text-on-surface-secondary">
-          {completed.size + 1} / {activeShots.length}
+          {currentIndex + 1} / {activeShots.length}
+          {currentIndex > completed.size && (
+            <span className="text-warning ml-2">
+              ({currentIndex - completed.size} skipped)
+            </span>
+          )}
         </span>
       </div>
       <div className="mx-4 h-1 bg-surface-secondary rounded-full overflow-hidden mb-3">
         <div
           className="h-full bg-accent transition-all"
-          style={{ width: `${((completed.size + 1) / activeShots.length) * 100}%` }}
+          style={{ width: `${((currentIndex + 1) / activeShots.length) * 100}%` }}
         />
       </div>
 

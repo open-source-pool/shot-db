@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router'
 import { useSessionById, updateBlock } from '../hooks/useSession'
 import { supabase } from '../lib/supabase'
 import { getImageUrl } from '../lib/supabase'
+import { getDefaultVariation } from '../lib/variations'
 import type { SessionBlock } from '../types'
 
 export function SessionReview() {
@@ -97,7 +98,10 @@ export function SessionReview() {
 
         {blocks.map((block) => {
           const shot = block.shot
-          const primaryImage = shot?.images?.find((i) => i.is_primary) ?? shot?.images?.[0]
+          // Use the practiced variation's image, falling back to default variation, then legacy images
+          const variation = block.shot_variation ?? (shot ? getDefaultVariation(shot) : null)
+          const variationImage = variation?.image ?? null
+          const primaryImage = variationImage ?? shot?.images?.find((i) => i.is_primary) ?? shot?.images?.[0]
           const isEditing = editingBlock === block.id
 
           return (
@@ -127,6 +131,9 @@ export function SessionReview() {
                       <span className="font-medium">
                         {shot?.title ?? block.block_type.charAt(0).toUpperCase() + block.block_type.slice(1)}
                       </span>
+                      {variation && shot?.variations && shot.variations.length > 1 && (
+                        <span className="text-xs text-accent ml-2">{variation.title}</span>
+                      )}
                       <span className="text-xs text-on-surface-secondary ml-2 capitalize">
                         {block.block_type}
                       </span>

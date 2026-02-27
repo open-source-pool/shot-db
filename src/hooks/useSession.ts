@@ -19,7 +19,9 @@ export function useSessionById(sessionId: string | undefined) {
         *,
         blocks:session_blocks(
           *,
-          shot:shots(*, images:shot_images(*))
+          shot:shots(*, images:shot_images(*), variations:shot_variations(*, image:shot_images(*))),
+          shot_image:shot_images(*),
+          shot_variation:shot_variations(*, image:shot_images(*))
         )
       `)
       .eq('id', id)
@@ -56,6 +58,8 @@ export async function createSessionBlocks(
   const rows = blocks.map((b, i) => ({
     session_id: sessionId,
     shot_id: b.shot_id,
+    shot_image_id: b.shot_image_id ?? null,
+    shot_variation_id: b.shot_variation_id ?? null,
     block_type: b.block_type,
     duration_minutes: b.duration_minutes,
     attempts: b.attempts,
@@ -71,7 +75,7 @@ export async function createSessionBlocks(
 
 export async function updateBlock(
   blockId: string,
-  updates: Partial<Pick<SessionBlock, 'attempts' | 'successes' | 'comfort_rating' | 'notes'>>
+  updates: Partial<Pick<SessionBlock, 'attempts' | 'successes' | 'comfort_rating' | 'notes' | 'shot_image_id' | 'shot_variation_id'>>
 ) {
   const { error } = await supabase
     .from('session_blocks')

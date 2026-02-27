@@ -3,7 +3,7 @@ import type { Assessment, Shot } from '../types'
 /**
  * Compute the aggregate skill score from assessment dimensions.
  *
- * Rules from the spec:
+ * Rules:
  * 1. If comfort AND visualization are both at lowest (1) → overall = 1
  * 2. If beautiful stroke OR alignment is incorrect → result doesn't matter → overall = 2
  * 3. Otherwise, result impacts: not good (1) → 2, good (2) → 3
@@ -21,11 +21,19 @@ export function computeAggregate(a: {
 }
 
 /**
- * Spaced repetition period: how many sessions between reviews.
- * Score 1 → every session, 2 → every other, 3 → every third.
+ * Frequency-adjusted spaced repetition period.
+ *
+ * High-frequency shots get tighter intervals at every skill level:
+ *   Score 1 + freq 3 → 1,  Score 1 + freq 2 → 1,  Score 1 + freq 1 → 2
+ *   Score 2 + freq 3 → 2,  Score 2 + freq 2 → 3,  Score 2 + freq 1 → 4
+ *   Score 3 + freq 3 → 3,  Score 3 + freq 2 → 5,  Score 3 + freq 1 → 7
  */
-export function spacedPeriod(aggregateScore: number): number {
-  return Math.max(1, aggregateScore)
+export function spacedPeriod(aggregateScore: number, frequency: number = 2): number {
+  const basePeriod = [1, 2, 4] // indexed by score - 1
+  const freqScale = [2.0, 1.0, 0.5] // indexed by 3 - frequency (so freq 3 = 0.5x = tighter)
+  const base = basePeriod[Math.min(Math.max(aggregateScore, 1), 3) - 1]
+  const scale = freqScale[Math.min(Math.max(3 - frequency, 0), 2)]
+  return Math.max(1, Math.round(base * scale))
 }
 
 /**
@@ -33,10 +41,22 @@ export function spacedPeriod(aggregateScore: number): number {
  */
 export function isDueForSession(
   aggregateScore: number,
-  sessionNumber: number
+  sessionNumber: number,
+  frequency: number = 2
 ): boolean {
-  const period = spacedPeriod(aggregateScore)
+  const period = spacedPeriod(aggregateScore, frequency)
   return (sessionNumber - 1) % period === 0
+}
+
+/**
+ * Composite priority score: combines skill weakness with real-world frequency.
+ * Higher = more urgent.
+ *
+ *   (4 - score) * 2 + frequency
+ *   Range: 3 (proficient + rare) to 9 (weak + common)
+ */
+export function priorityScore(aggregateScore: number, frequency: number): number {
+  return (4 - aggregateScore) * 2 + frequency
 }
 
 /**
@@ -74,15 +94,25 @@ export interface ShotWithScore {
   shot: Shot
   aggregateScore: number
   latestAssessment: Assessment | null
+  lastPracticedAt: string | null
+  priorityScore: number
+  isAssessed: boolean
 }
 
 /**
- * Prioritize shots for training: lower aggregate first, higher frequency next.
- * Shots without assessments are treated as score 1 (highest priority).
+ * Prioritize shots for training using the v2 algorithm:
+ *
+ * 1. Unassessed shots first (sub-sort: frequency DESC, alpha)
+ * 2. Composite priority score DESC (combines skill + frequency)
+ * 3. Least recently practiced first (recency tiebreaker)
+ * 4. Alphabetical
+ *
+ * @param lastPracticedMap - optional map of shot_id → ISO date string of last practice
  */
 export function prioritizeShots(
   shots: Shot[],
-  assessments: Assessment[]
+  assessments: Assessment[],
+  lastPracticedMap?: Map<string, string>
 ): ShotWithScore[] {
   // Build map: shot_id -> latest assessment
   const latestByShot = new Map<string, Assessment>()
@@ -98,15 +128,41 @@ export function prioritizeShots(
     .map((shot) => {
       const latest = latestByShot.get(shot.id) ?? null
       const aggregateScore = latest ? latest.aggregate_score : 1
-      return { shot, aggregateScore, latestAssessment: latest }
+      const isAssessed = latest !== null
+      const lastPracticedAt = lastPracticedMap?.get(shot.id) ?? null
+      return {
+        shot,
+        aggregateScore,
+        latestAssessment: latest,
+        lastPracticedAt,
+        priorityScore: priorityScore(aggregateScore, shot.frequency),
+        isAssessed,
+      }
     })
 
-  // Sort: lower aggregate first, higher frequency next, then by title for stability
   scored.sort((a, b) => {
-    if (a.aggregateScore !== b.aggregateScore)
-      return a.aggregateScore - b.aggregateScore
-    if (a.shot.frequency !== b.shot.frequency)
-      return b.shot.frequency - a.shot.frequency
+    // 1. Unassessed shots first
+    if (a.isAssessed !== b.isAssessed) return a.isAssessed ? 1 : -1
+
+    // For unassessed: frequency DESC, then alpha
+    if (!a.isAssessed && !b.isAssessed) {
+      if (a.shot.frequency !== b.shot.frequency)
+        return b.shot.frequency - a.shot.frequency
+      return a.shot.title.localeCompare(b.shot.title)
+    }
+
+    // 2. Priority score DESC (higher = more urgent)
+    if (a.priorityScore !== b.priorityScore)
+      return b.priorityScore - a.priorityScore
+
+    // 3. Least recently practiced first (null = never practiced = top)
+    if (a.lastPracticedAt !== b.lastPracticedAt) {
+      if (!a.lastPracticedAt) return -1
+      if (!b.lastPracticedAt) return 1
+      return a.lastPracticedAt.localeCompare(b.lastPracticedAt)
+    }
+
+    // 4. Alphabetical
     return a.shot.title.localeCompare(b.shot.title)
   })
 

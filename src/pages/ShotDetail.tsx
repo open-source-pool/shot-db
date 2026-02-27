@@ -2,15 +2,28 @@ import { useState } from 'react'
 import { useParams, Link } from 'react-router'
 import { useShot } from '../hooks/useShots'
 import { useAssessments } from '../hooks/useAssessments'
+import { useShotSessionHistory } from '../hooks/useSessions'
 import { supabase, getImageUrl } from '../lib/supabase'
 import { FREQUENCY_LABELS, COMFORT_LABELS } from '../types'
 import { ImageUpload } from '../components/ImageUpload'
+
+interface EditVariation {
+  id?: string // undefined = new
+  title: string
+  setup_note: string
+  image_id: string | null
+  image_storage_path: string | null // for thumbnail display
+  is_default: boolean
+  sort_order: number
+  newImageFile?: File | null // pending upload
+}
 
 export function ShotDetail() {
   const { slug } = useParams<{ slug: string }>()
   const { shot, loading, error, refetch } = useShot(slug)
   const { assessments } = useAssessments(shot?.id)
-  const [imageIndex, setImageIndex] = useState(0)
+  const { entries: sessionHistory } = useShotSessionHistory(shot?.id)
+  const [variationIndex, setVariationIndex] = useState(0)
 
   // Edit mode state
   const [editing, setEditing] = useState(false)
@@ -19,16 +32,17 @@ export function ShotDetail() {
   const [editSetupText, setEditSetupText] = useState('')
   const [editFrequency, setEditFrequency] = useState<1 | 2 | 3>(2)
   const [editStatus, setEditStatus] = useState<'active' | 'pending'>('active')
-  const [newImageFile, setNewImageFile] = useState<File | null>(null)
+  const [editVariations, setEditVariations] = useState<EditVariation[]>([])
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [deletingImageId, setDeletingImageId] = useState<string | null>(null)
+  const [uploadingForIndex, setUploadingForIndex] = useState<number | null>(null)
 
   if (loading) return <div className="p-4 text-on-surface-secondary">Loading...</div>
   if (error || !shot) return <div className="p-4 text-danger">Shot not found</div>
 
-  const images = shot.images ?? []
-  const currentImage = images[imageIndex]
+  const variations = shot.variations ?? []
+  const currentVariation = variations[variationIndex]
+  const currentImage = currentVariation?.image ?? null
 
   function startEditing() {
     setEditTitle(shot!.title)
@@ -36,15 +50,62 @@ export function ShotDetail() {
     setEditSetupText(shot!.setup_text ?? '')
     setEditFrequency(shot!.frequency)
     setEditStatus(shot!.status)
-    setNewImageFile(null)
+    setEditVariations(
+      (shot!.variations ?? []).map((v) => ({
+        id: v.id,
+        title: v.title,
+        setup_note: v.setup_note ?? '',
+        image_id: v.image_id,
+        image_storage_path: v.image?.storage_path ?? null,
+        is_default: v.is_default,
+        sort_order: v.sort_order,
+      }))
+    )
     setSaveError(null)
     setEditing(true)
   }
 
   function cancelEditing() {
     setEditing(false)
-    setNewImageFile(null)
     setSaveError(null)
+    setUploadingForIndex(null)
+  }
+
+  function updateEditVariation(index: number, updates: Partial<EditVariation>) {
+    setEditVariations((prev) =>
+      prev.map((v, i) => (i === index ? { ...v, ...updates } : v))
+    )
+  }
+
+  function handleSetDefault(index: number) {
+    setEditVariations((prev) =>
+      prev.map((v, i) => ({ ...v, is_default: i === index }))
+    )
+  }
+
+  function handleAddVariation() {
+    setEditVariations((prev) => [
+      ...prev,
+      {
+        title: 'New variation',
+        setup_note: '',
+        image_id: null,
+        image_storage_path: null,
+        is_default: prev.length === 0,
+        sort_order: prev.length,
+      },
+    ])
+  }
+
+  function handleRemoveVariation(index: number) {
+    setEditVariations((prev) => {
+      const updated = prev.filter((_, i) => i !== index)
+      // If we removed the default, make first one default
+      if (updated.length > 0 && !updated.some((v) => v.is_default)) {
+        updated[0].is_default = true
+      }
+      return updated.map((v, i) => ({ ...v, sort_order: i }))
+    })
   }
 
   async function handleSave() {
@@ -57,6 +118,7 @@ export function ShotDetail() {
     setSaving(true)
     setSaveError(null)
 
+    // Update shot fields
     const { error: updateErr } = await supabase
       .from('shots')
       .update({
@@ -74,70 +136,75 @@ export function ShotDetail() {
       return
     }
 
-    // Upload new image if provided
-    if (newImageFile) {
-      const storagePath = `${shot.slug}/${newImageFile.name}`
-      const { error: uploadErr } = await supabase.storage
-        .from('shot-images')
-        .upload(storagePath, newImageFile, { upsert: true })
+    // Delete removed variations (those with IDs not in editVariations)
+    const existingIds = (shot.variations ?? []).map((v) => v.id)
+    const keptIds = editVariations.filter((v) => v.id).map((v) => v.id!)
+    const deletedIds = existingIds.filter((id) => !keptIds.includes(id))
+    if (deletedIds.length > 0) {
+      await supabase.from('shot_variations').delete().in('id', deletedIds)
+    }
 
-      if (!uploadErr) {
-        await supabase.from('shot_images').insert({
+    // Upsert variations
+    for (const v of editVariations) {
+      // Upload new image if attached
+      let imageId = v.image_id
+      if (v.newImageFile) {
+        const storagePath = `${shot.slug}/${v.newImageFile.name}`
+        const { error: uploadErr } = await supabase.storage
+          .from('shot-images')
+          .upload(storagePath, v.newImageFile, { upsert: true })
+
+        if (!uploadErr) {
+          const { data: imgRow } = await supabase
+            .from('shot_images')
+            .insert({
+              shot_id: shot.id,
+              file_name: v.newImageFile.name,
+              storage_path: storagePath,
+              side: 'center',
+              is_primary: false,
+              sort_order: 0,
+            })
+            .select('id')
+            .single()
+          imageId = imgRow?.id ?? null
+        }
+      }
+
+      if (v.id) {
+        // Update existing
+        await supabase
+          .from('shot_variations')
+          .update({
+            title: v.title.trim(),
+            setup_note: v.setup_note.trim() || null,
+            image_id: imageId,
+            is_default: v.is_default,
+            sort_order: v.sort_order,
+          })
+          .eq('id', v.id)
+      } else {
+        // Insert new
+        await supabase.from('shot_variations').insert({
           shot_id: shot.id,
-          file_name: newImageFile.name,
-          storage_path: storagePath,
-          side: 'center',
-          is_primary: images.length === 0,
-          sort_order: images.length,
+          title: v.title.trim(),
+          setup_note: v.setup_note.trim() || null,
+          image_id: imageId,
+          is_default: v.is_default,
+          sort_order: v.sort_order,
         })
       }
     }
 
     setSaving(false)
     setEditing(false)
-    setNewImageFile(null)
-    refetch()
-  }
-
-  async function handleDeleteImage(imageId: string, storagePath: string) {
-    setDeletingImageId(imageId)
-
-    // Delete from storage
-    await supabase.storage.from('shot-images').remove([storagePath])
-
-    // Delete metadata row
-    await supabase.from('shot_images').delete().eq('id', imageId)
-
-    setDeletingImageId(null)
-
-    // Adjust image index if needed
-    if (imageIndex >= images.length - 1 && imageIndex > 0) {
-      setImageIndex(imageIndex - 1)
-    }
-    refetch()
-  }
-
-  async function handleSetPrimary(imageId: string) {
-    if (!shot) return
-
-    // Unset all primary flags for this shot
-    await supabase
-      .from('shot_images')
-      .update({ is_primary: false })
-      .eq('shot_id', shot.id)
-
-    // Set the selected one as primary
-    await supabase
-      .from('shot_images')
-      .update({ is_primary: true })
-      .eq('id', imageId)
-
+    setUploadingForIndex(null)
     refetch()
   }
 
   return (
     <div className="pb-4">
-      {/* Image carousel */}
+      {/* Variation carousel */}
       <div className="relative aspect-[4/3] sm:aspect-[16/9] max-h-[50vh] bg-black">
         {currentImage ? (
           <img
@@ -147,30 +214,30 @@ export function ShotDetail() {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-500">
-            No image
+            {currentVariation ? currentVariation.title : 'No variations'}
           </div>
         )}
 
-        {images.length > 1 && (
+        {variations.length > 1 && (
           <>
             <button
-              onClick={() => setImageIndex((i) => (i - 1 + images.length) % images.length)}
+              onClick={() => setVariationIndex((i) => (i - 1 + variations.length) % variations.length)}
               className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full"
             >
               &larr;
             </button>
             <button
-              onClick={() => setImageIndex((i) => (i + 1) % images.length)}
+              onClick={() => setVariationIndex((i) => (i + 1) % variations.length)}
               className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full"
             >
               &rarr;
             </button>
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-              {images.map((_, i) => (
+              {variations.map((_, i) => (
                 <div
                   key={i}
                   className={`w-2 h-2 rounded-full ${
-                    i === imageIndex ? 'bg-white' : 'bg-white/40'
+                    i === variationIndex ? 'bg-white' : 'bg-white/40'
                   }`}
                 />
               ))}
@@ -178,11 +245,29 @@ export function ShotDetail() {
           </>
         )}
 
-        {/* Primary badge */}
-        {currentImage?.is_primary && images.length > 1 && (
-          <span className="absolute top-2 left-2 text-xs bg-accent text-white px-2 py-0.5 rounded-full">
-            Primary
-          </span>
+        {/* Variation title + default badge overlay */}
+        {currentVariation && (
+          <div className="absolute top-2 left-2 right-2 flex items-start justify-between">
+            {currentVariation.is_default && variations.length > 1 && (
+              <span className="text-xs bg-accent text-white px-2 py-0.5 rounded-full">
+                Default
+              </span>
+            )}
+            {variations.length > 1 && (
+              <span className="text-xs bg-black/60 text-white px-2 py-0.5 rounded-full ml-auto">
+                {currentVariation.title}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Setup note overlay */}
+        {currentVariation?.setup_note && (
+          <div className="absolute bottom-8 left-2 right-2">
+            <p className="text-xs bg-black/60 text-white px-2 py-1 rounded-lg line-clamp-2">
+              {currentVariation.setup_note}
+            </p>
+          </div>
         )}
       </div>
 
@@ -217,6 +302,11 @@ export function ShotDetail() {
                 <span className="text-xs text-on-surface-secondary">
                   Frequency: {FREQUENCY_LABELS[shot.frequency]}
                 </span>
+                {variations.length > 1 && (
+                  <span className="text-xs text-on-surface-secondary">
+                    {variations.length} variations
+                  </span>
+                )}
               </div>
             </>
           ) : (
@@ -304,57 +394,113 @@ export function ShotDetail() {
                 </div>
               </div>
 
-              {/* Image management in edit mode */}
+              {/* Variation management */}
               <div>
                 <label className="text-sm text-on-surface-secondary block mb-2">
-                  Images
+                  Variations
                 </label>
-                {images.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2 mb-3">
-                    {images.map((img) => (
-                      <div
-                        key={img.id}
-                        className={`relative rounded-lg overflow-hidden bg-black aspect-square border-2 ${
-                          img.is_primary ? 'border-accent' : 'border-transparent'
-                        }`}
-                      >
-                        <img
-                          src={getImageUrl(img.storage_path)}
-                          alt={img.file_name}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-x-0 bottom-0 flex">
-                          {!img.is_primary && (
-                            <button
-                              onClick={() => handleSetPrimary(img.id)}
-                              className="flex-1 bg-black/70 text-white text-[10px] py-1 hover:bg-accent/80 transition-colors"
-                            >
-                              Primary
-                            </button>
+                <div className="space-y-3">
+                  {editVariations.map((v, i) => (
+                    <div
+                      key={v.id ?? `new-${i}`}
+                      className={`p-3 rounded-lg border ${
+                        v.is_default ? 'border-accent bg-accent/5' : 'border-border bg-surface-secondary'
+                      }`}
+                    >
+                      <div className="flex gap-3">
+                        {/* Thumbnail */}
+                        <div
+                          className="w-16 h-16 rounded-lg bg-black overflow-hidden shrink-0 cursor-pointer"
+                          onClick={() => setUploadingForIndex(uploadingForIndex === i ? null : i)}
+                        >
+                          {v.newImageFile ? (
+                            <img
+                              src={URL.createObjectURL(v.newImageFile)}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          ) : v.image_storage_path ? (
+                            <img
+                              src={getImageUrl(v.image_storage_path)}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-500 text-[10px]">
+                              + img
+                            </div>
                           )}
-                          <button
-                            onClick={() => handleDeleteImage(img.id, img.storage_path)}
-                            disabled={deletingImageId === img.id}
-                            className="flex-1 bg-black/70 text-danger text-[10px] py-1 hover:bg-danger/80 hover:text-white transition-colors disabled:opacity-50"
-                          >
-                            {deletingImageId === img.id ? '...' : 'Delete'}
-                          </button>
                         </div>
-                        {img.is_primary && (
-                          <span className="absolute top-1 left-1 text-[10px] bg-accent text-white px-1.5 py-0.5 rounded-full">
-                            Primary
+
+                        {/* Fields */}
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <input
+                            type="text"
+                            value={v.title}
+                            onChange={(e) => updateEditVariation(i, { title: e.target.value })}
+                            placeholder="Variation name"
+                            className="w-full px-2 py-1 rounded border border-border bg-surface text-on-surface text-sm"
+                          />
+                          <input
+                            type="text"
+                            value={v.setup_note}
+                            onChange={(e) => updateEditVariation(i, { setup_note: e.target.value })}
+                            placeholder="Setup note (optional)"
+                            className="w-full px-2 py-1 rounded border border-border bg-surface text-on-surface text-xs"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-2 mt-2">
+                        {!v.is_default && (
+                          <button
+                            type="button"
+                            onClick={() => handleSetDefault(i)}
+                            className="text-[10px] px-2 py-0.5 rounded border border-accent/30 text-accent hover:bg-accent/5 transition-colors"
+                          >
+                            Set Default
+                          </button>
+                        )}
+                        {v.is_default && (
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-accent text-white">
+                            Default
                           </span>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveVariation(i)}
+                          disabled={editVariations.length <= 1}
+                          className="text-[10px] px-2 py-0.5 rounded border border-danger/30 text-danger hover:bg-danger/5 transition-colors disabled:opacity-30 ml-auto"
+                        >
+                          Remove
+                        </button>
                       </div>
-                    ))}
-                  </div>
-                )}
 
-                <ImageUpload
-                  onFileSelect={(f) => setNewImageFile(f)}
-                  currentFile={newImageFile}
-                  label="Add New Image"
-                />
+                      {/* Image upload for this variation */}
+                      {uploadingForIndex === i && (
+                        <div className="mt-2">
+                          <ImageUpload
+                            onFileSelect={(f) => {
+                              updateEditVariation(i, { newImageFile: f })
+                              setUploadingForIndex(null)
+                            }}
+                            currentFile={v.newImageFile ?? null}
+                            label="Choose Image"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddVariation}
+                  className="w-full mt-2 py-2 text-sm rounded-lg border border-dashed border-accent/40 text-accent hover:bg-accent/5 transition-colors"
+                >
+                  + Add Variation
+                </button>
               </div>
 
               {saveError && <p className="text-danger text-sm">{saveError}</p>}
@@ -449,7 +595,131 @@ export function ShotDetail() {
             )}
           </div>
         )}
+
+        {/* Session history */}
+        {!editing && (
+          <div>
+            <h2 className="text-sm font-semibold text-on-surface-secondary mb-2">
+              Session History ({sessionHistory.length} blocks)
+            </h2>
+            {sessionHistory.length === 0 ? (
+              <p className="text-sm text-on-surface-secondary">
+                Not practiced in any sessions yet.
+              </p>
+            ) : (
+              <SessionHistoryTable entries={sessionHistory} />
+            )}
+          </div>
+        )}
       </div>
+    </div>
+  )
+}
+
+/** Grouped session history: aggregates blocks per session date */
+function SessionHistoryTable({ entries }: { entries: import('../hooks/useSessions').ShotSessionEntry[] }) {
+  // Group entries by session_id
+  const grouped = new Map<string, typeof entries>()
+  for (const e of entries) {
+    const list = grouped.get(e.session_id) ?? []
+    list.push(e)
+    grouped.set(e.session_id, list)
+  }
+
+  // Convert to sorted array (newest first — entries are already sorted by date desc)
+  const sessions = Array.from(grouped.entries()).map(([sessionId, blocks]) => {
+    const totalAttempts = blocks.reduce((s, b) => s + b.attempts, 0)
+    const totalSuccesses = blocks.reduce((s, b) => s + b.successes, 0)
+    const totalMinutes = blocks.reduce((s, b) => s + b.duration_minutes, 0)
+    const rate = totalAttempts > 0 ? Math.round((totalSuccesses / totalAttempts) * 100) : null
+    return {
+      sessionId,
+      date: blocks[0].session_date,
+      blocks,
+      totalAttempts,
+      totalSuccesses,
+      totalMinutes,
+      rate,
+    }
+  })
+
+  // Overall stats
+  const allAttempts = sessions.reduce((s, r) => s + r.totalAttempts, 0)
+  const allSuccesses = sessions.reduce((s, r) => s + r.totalSuccesses, 0)
+  const overallRate = allAttempts > 0 ? Math.round((allSuccesses / allAttempts) * 100) : null
+
+  return (
+    <div className="space-y-3">
+      {/* Summary stats */}
+      {sessions.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          <div className="p-2 rounded-lg border border-border bg-surface-secondary text-center">
+            <div className="text-lg font-bold">{sessions.length}</div>
+            <div className="text-[10px] text-on-surface-secondary">Sessions</div>
+          </div>
+          <div className="p-2 rounded-lg border border-border bg-surface-secondary text-center">
+            <div className="text-lg font-bold">{allAttempts}</div>
+            <div className="text-[10px] text-on-surface-secondary">Attempts</div>
+          </div>
+          <div className="p-2 rounded-lg border border-border bg-surface-secondary text-center">
+            <div className="text-lg font-bold">
+              {overallRate !== null ? `${overallRate}%` : '—'}
+            </div>
+            <div className="text-[10px] text-on-surface-secondary">Hit Rate</div>
+          </div>
+        </div>
+      )}
+
+      {/* Per-session rows */}
+      {sessions.map((s) => (
+        <Link
+          key={s.sessionId}
+          to={`/session/${s.sessionId}/review`}
+          className="block p-3 rounded-lg border border-border bg-surface-secondary text-sm hover:border-accent transition-colors"
+        >
+          <div className="flex justify-between items-center">
+            <span className="font-medium">
+              {new Date(s.date).toLocaleDateString()}
+            </span>
+            <span className="text-xs text-on-surface-secondary">
+              {s.totalMinutes} min
+            </span>
+          </div>
+          <div className="flex gap-4 mt-1 text-xs">
+            <span>{s.totalAttempts} attempts</span>
+            <span className="text-success">{s.totalSuccesses} hits</span>
+            <span className="font-medium">
+              {s.rate !== null ? `${s.rate}%` : '—'}
+            </span>
+          </div>
+          {s.blocks.some((b) => b.shot_variation || b.shot_image) && (
+            <div className="flex gap-1.5 mt-1.5 items-center">
+              {s.blocks
+                .filter((b) => b.shot_variation || b.shot_image)
+                .map((b, i) => {
+                  const img = b.shot_variation?.image ?? b.shot_image
+                  const label = b.shot_variation?.title
+                  return (
+                    <div key={i} className="flex items-center gap-1">
+                      {img && (
+                        <div className="w-8 h-8 rounded overflow-hidden bg-black shrink-0">
+                          <img
+                            src={getImageUrl(img.storage_path)}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                      {label && (
+                        <span className="text-[10px] text-on-surface-secondary">{label}</span>
+                      )}
+                    </div>
+                  )
+                })}
+            </div>
+          )}
+        </Link>
+      ))}
     </div>
   )
 }

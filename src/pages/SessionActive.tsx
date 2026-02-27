@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router'
 import { useSessionById, updateBlock } from '../hooks/useSession'
 import { getImageUrl } from '../lib/supabase'
-import type { SessionBlock } from '../types'
+import { getDefaultVariation } from '../lib/variations'
+import type { SessionBlock, ShotVariation } from '../types'
 
 export function SessionActive() {
   const { id } = useParams<{ id: string }>()
@@ -14,6 +15,7 @@ export function SessionActive() {
   const intervalRef = useRef<ReturnType<typeof setInterval>>(null)
   const [editingField, setEditingField] = useState<'attempts' | 'successes' | null>(null)
   const [editValue, setEditValue] = useState('')
+  const [selectedVariationId, setSelectedVariationId] = useState<string | null>(null)
 
   // Wall-clock anchors so the timer survives backgrounding / phone lock
   const startedAtRef = useRef(Date.now())
@@ -50,6 +52,21 @@ export function SessionActive() {
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [running])
 
+  // Reset selected variation when block changes
+  useEffect(() => {
+    if (!session) return
+    const blocks = session.blocks ?? []
+    const block = blocks[currentBlockIndex]
+    if (block?.shot_variation_id) {
+      setSelectedVariationId(block.shot_variation_id)
+    } else if (block?.shot) {
+      const defaultVar = getDefaultVariation(block.shot)
+      setSelectedVariationId(defaultVar?.id ?? null)
+    } else {
+      setSelectedVariationId(null)
+    }
+  }, [currentBlockIndex, session])
+
   if (loading || !session)
     return <div className="p-4 text-on-surface-secondary">Loading session...</div>
 
@@ -82,7 +99,11 @@ export function SessionActive() {
   }
 
   const shot = block.shot
-  const primaryImage = shot?.images?.find((img) => img.is_primary) ?? shot?.images?.[0]
+  const variations = shot?.variations ?? []
+  const currentVariation = variations.find((v) => v.id === selectedVariationId)
+    ?? variations.find((v) => v.is_default)
+    ?? variations[0]
+  const currentImage = currentVariation?.image ?? null
   const blockDurationSec = block.duration_minutes * 60
 
   // Calculate cumulative time for current block
@@ -92,6 +113,13 @@ export function SessionActive() {
   }
   const blockElapsed = elapsed - priorMinutes * 60
   const blockRemaining = Math.max(0, blockDurationSec - blockElapsed)
+
+  async function selectVariation(variation: ShotVariation) {
+    if (!block) return
+    setSelectedVariationId(variation.id)
+    await updateBlock(block.id, { shot_variation_id: variation.id })
+    refetch()
+  }
 
   async function recordAttempt(success: boolean) {
     if (!block) return
@@ -111,14 +139,14 @@ export function SessionActive() {
     const updates: Partial<Pick<SessionBlock, 'attempts' | 'successes'>> = {}
 
     if (editingField === 'attempts') {
-      updates.attempts = val
-      // Ensure successes doesn't exceed attempts
-      if ((block.successes ?? 0) > val) {
-        updates.successes = val
-      }
+      // Editing misses: attempts = hits + new misses
+      const hits = block.successes ?? 0
+      updates.attempts = hits + val
     } else {
-      // Ensure successes doesn't exceed attempts
-      updates.successes = Math.min(val, block.attempts ?? 0)
+      // Editing hits: keep misses the same, recompute attempts
+      const misses = (block.attempts ?? 0) - (block.successes ?? 0)
+      updates.successes = val
+      updates.attempts = val + misses
     }
 
     await updateBlock(block.id, updates)
@@ -129,7 +157,12 @@ export function SessionActive() {
 
   function startEdit(field: 'attempts' | 'successes') {
     setEditingField(field)
-    setEditValue(String(field === 'attempts' ? (block?.attempts ?? 0) : (block?.successes ?? 0)))
+    if (field === 'attempts') {
+      // Show current miss count
+      setEditValue(String((block?.attempts ?? 0) - (block?.successes ?? 0)))
+    } else {
+      setEditValue(String(block?.successes ?? 0))
+    }
   }
 
   function nextBlock() {
@@ -181,18 +214,54 @@ export function SessionActive() {
 
       {/* Shot image */}
       {shot && (
-        <div className="aspect-[4/3] sm:aspect-[16/9] max-h-[50vh] bg-black mx-4 rounded-xl overflow-hidden mb-4">
-          {primaryImage ? (
+        <div className="aspect-[4/3] sm:aspect-[16/9] max-h-[50vh] bg-black mx-4 rounded-xl overflow-hidden mb-2">
+          {currentImage ? (
             <img
-              src={getImageUrl(primaryImage.storage_path)}
+              src={getImageUrl(currentImage.storage_path)}
               alt={shot.title}
               className="w-full h-full object-contain"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-500">
-              No image
+              {currentVariation ? currentVariation.title : 'No image'}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Variation picker */}
+      {shot && variations.length > 1 && (
+        <div className="mx-4 mb-4">
+          <div className="flex gap-2 overflow-x-auto py-1">
+            {variations.map((v) => {
+              const isSelected = v.id === (selectedVariationId ?? currentVariation?.id)
+              return (
+                <button
+                  key={v.id}
+                  onClick={() => selectVariation(v)}
+                  className={`shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-lg border-2 transition-colors ${
+                    isSelected
+                      ? 'border-accent bg-accent/5'
+                      : 'border-transparent opacity-60 hover:opacity-100'
+                  }`}
+                >
+                  {v.image && (
+                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-black shrink-0">
+                      <img
+                        src={getImageUrl(v.image.storage_path)}
+                        alt={v.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <span className="text-xs font-medium max-w-[80px] truncate">{v.title}</span>
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-[10px] text-on-surface-secondary mt-1">
+            Tap a variation to practice
+          </p>
         </div>
       )}
 
@@ -208,6 +277,9 @@ export function SessionActive() {
           </h2>
           <span className="text-xs text-on-surface-secondary capitalize">
             {block.block_type} &middot; {block.duration_minutes} min
+            {currentVariation && variations.length > 1 && (
+              <> &middot; {currentVariation.title}</>
+            )}
           </span>
         </div>
 
@@ -230,34 +302,7 @@ export function SessionActive() {
             </div>
 
             <div className="flex justify-around text-center">
-              {/* Attempts — tap to edit */}
-              <button
-                onClick={() => startEdit('attempts')}
-                className="p-2 rounded-lg hover:bg-surface-secondary transition-colors"
-              >
-                {editingField === 'attempts' ? (
-                  <div className="flex flex-col items-center gap-1">
-                    <input
-                      type="number"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={handleEditSave}
-                      onKeyDown={(e) => e.key === 'Enter' && handleEditSave()}
-                      autoFocus
-                      className="w-16 text-center text-xl font-bold border border-accent rounded px-1 bg-surface text-on-surface"
-                      min={0}
-                    />
-                    <div className="text-xs text-accent">Enter to save</div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-2xl font-bold">{block.attempts ?? 0}</div>
-                    <div className="text-xs text-on-surface-secondary">Attempts</div>
-                  </>
-                )}
-              </button>
-
-              {/* Successes — tap to edit */}
+              {/* Hits — tap to edit */}
               <button
                 onClick={() => startEdit('successes')}
                 className="p-2 rounded-lg hover:bg-surface-secondary transition-colors"
@@ -280,6 +325,33 @@ export function SessionActive() {
                   <>
                     <div className="text-2xl font-bold text-success">{block.successes ?? 0}</div>
                     <div className="text-xs text-on-surface-secondary">Hits</div>
+                  </>
+                )}
+              </button>
+
+              {/* Misses — tap to edit */}
+              <button
+                onClick={() => startEdit('attempts')}
+                className="p-2 rounded-lg hover:bg-surface-secondary transition-colors"
+              >
+                {editingField === 'attempts' ? (
+                  <div className="flex flex-col items-center gap-1">
+                    <input
+                      type="number"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={handleEditSave}
+                      onKeyDown={(e) => e.key === 'Enter' && handleEditSave()}
+                      autoFocus
+                      className="w-16 text-center text-xl font-bold border border-accent rounded px-1 bg-surface text-on-surface"
+                      min={0}
+                    />
+                    <div className="text-xs text-accent">Enter to save</div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold text-danger">{(block.attempts ?? 0) - (block.successes ?? 0)}</div>
+                    <div className="text-xs text-on-surface-secondary">Misses</div>
                   </>
                 )}
               </button>
