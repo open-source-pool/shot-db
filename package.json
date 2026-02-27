@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "seed": "tsx scripts/seed.ts",
     "seed:assessments": "tsx scripts/seed-assessments.ts",
+    "seed:history": "tsx scripts/seed-practice-history.ts",
     "db:push": "supabase db push",
     "db:migrate": "supabase migration new",
     "db:status": "supabase migration list"

@@ -1,4 +1,4 @@
-import { Outlet, NavLink } from 'react-router'
+import { Outlet, NavLink, useLocation } from 'react-router'
 import { useEffect, useState } from 'react'
 
 const navItems = [
@@ -22,6 +22,8 @@ export function Layout() {
     localStorage.setItem('shotdb-theme', dark ? 'dark' : 'light')
   }, [dark])
 
+  const location = useLocation()
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-30 bg-surface border-b border-border px-4 py-3 flex items-center justify-between">
@@ -30,7 +32,7 @@ export function Layout() {
         </NavLink>
         <button
           onClick={() => setDark((d) => !d)}
-          className="p-2 rounded-lg bg-surface-secondary text-on-surface-secondary hover:text-on-surface transition-colors"
+          className="p-2 rounded-lg bg-surface-secondary text-on-surface-secondary hover:text-on-surface transition-colors active:scale-95 transition-transform duration-150"
           aria-label="Toggle dark mode"
         >
           {dark ? 'Light' : 'Dark'}
@@ -38,7 +40,7 @@ export function Layout() {
       </header>
 
       <main className="flex-1 pb-24">
-        <div className="max-w-3xl mx-auto">
+        <div key={location.pathname} className="max-w-3xl mx-auto animate-fade-in">
           <Outlet />
         </div>
       </main>
@@ -51,7 +53,7 @@ export function Layout() {
               to={item.to}
               end={item.to === '/'}
               className={({ isActive }) =>
-                `flex flex-col items-center px-3 py-1.5 text-sm transition-colors ${
+                `flex flex-col items-center px-3 py-1.5 text-sm transition-all duration-150 active:scale-90 ${
                   isActive
                     ? 'text-accent font-semibold'
                     : 'text-on-surface-secondary'

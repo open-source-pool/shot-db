@@ -16,6 +16,7 @@ export function SessionActive() {
   const [editingField, setEditingField] = useState<'attempts' | 'successes' | null>(null)
   const [editValue, setEditValue] = useState('')
   const [selectedVariationId, setSelectedVariationId] = useState<string | null>(null)
+  const [countPopKey, setCountPopKey] = useState(0)
 
   // Wall-clock anchors so the timer survives backgrounding / phone lock
   const startedAtRef = useRef(Date.now())
@@ -130,6 +131,7 @@ export function SessionActive() {
       updates.successes = (block.successes ?? 0) + 1
     }
     await updateBlock(block.id, updates)
+    setCountPopKey((k) => k + 1)
     refetch()
   }
 
@@ -265,7 +267,7 @@ export function SessionActive() {
         </div>
       )}
 
-      <div className="px-4 space-y-3">
+      <div key={`block-${currentBlockIndex}`} className="px-4 space-y-3 animate-fade-in">
         {/* Block info */}
         <div>
           <h2 className="font-semibold text-lg">
@@ -289,13 +291,13 @@ export function SessionActive() {
             <div className="flex gap-3">
               <button
                 onClick={() => recordAttempt(true)}
-                className="flex-1 py-4 bg-success/10 text-success font-semibold rounded-xl border border-success/30 text-lg active:bg-success/20"
+                className="flex-1 py-4 bg-success/10 text-success font-semibold rounded-xl border border-success/30 text-lg active:scale-95 transition-transform duration-150"
               >
                 Hit
               </button>
               <button
                 onClick={() => recordAttempt(false)}
-                className="flex-1 py-4 bg-danger/10 text-danger font-semibold rounded-xl border border-danger/30 text-lg active:bg-danger/20"
+                className="flex-1 py-4 bg-danger/10 text-danger font-semibold rounded-xl border border-danger/30 text-lg active:scale-95 transition-transform duration-150"
               >
                 Miss
               </button>
@@ -323,7 +325,7 @@ export function SessionActive() {
                   </div>
                 ) : (
                   <>
-                    <div className="text-2xl font-bold text-success">{block.successes ?? 0}</div>
+                    <div key={`hits-${countPopKey}`} className="text-2xl font-bold text-success animate-count-pop">{block.successes ?? 0}</div>
                     <div className="text-xs text-on-surface-secondary">Hits</div>
                   </>
                 )}
@@ -350,7 +352,7 @@ export function SessionActive() {
                   </div>
                 ) : (
                   <>
-                    <div className="text-2xl font-bold text-danger">{(block.attempts ?? 0) - (block.successes ?? 0)}</div>
+                    <div key={`misses-${countPopKey}`} className="text-2xl font-bold text-danger animate-count-pop">{(block.attempts ?? 0) - (block.successes ?? 0)}</div>
                     <div className="text-xs text-on-surface-secondary">Misses</div>
                   </>
                 )}
@@ -358,7 +360,7 @@ export function SessionActive() {
 
               {/* Rate */}
               <div className="p-2">
-                <div className="text-2xl font-bold">
+                <div key={`rate-${countPopKey}`} className="text-2xl font-bold animate-count-pop">
                   {block.attempts
                     ? `${Math.round(((block.successes ?? 0) / block.attempts) * 100)}%`
                     : '—'}

@@ -103,7 +103,7 @@ export function Assessment() {
       </div>
 
       {/* Shot image */}
-      <div className="aspect-[4/3] bg-black mx-4 rounded-xl overflow-hidden mb-4">
+      <div key={shot.id} className="aspect-[4/3] bg-black mx-4 rounded-xl overflow-hidden mb-4 animate-fade-in">
         {primaryImage ? (
           <img
             src={getImageUrl(primaryImage.storage_path)}
@@ -130,7 +130,7 @@ export function Assessment() {
               <button
                 key={v}
                 onClick={() => setForm((f) => ({ ...f, comfort_level: v }))}
-                className={`px-3 py-2 text-xs rounded-lg border transition-colors ${
+                className={`px-3 py-2 text-xs rounded-lg border transition-all duration-150 active:scale-95 ${
                   form.comfort_level === v
                     ? 'border-accent bg-accent/10 text-accent'
                     : 'border-border text-on-surface-secondary'
@@ -152,7 +152,7 @@ export function Assessment() {
               <button
                 key={v}
                 onClick={() => setForm((f) => ({ ...f, visualization: v }))}
-                className={`px-3 py-2 text-xs rounded-lg border transition-colors ${
+                className={`px-3 py-2 text-xs rounded-lg border transition-all duration-150 active:scale-95 ${
                   form.visualization === v
                     ? 'border-accent bg-accent/10 text-accent'
                     : 'border-border text-on-surface-secondary'
@@ -174,7 +174,7 @@ export function Assessment() {
               <button
                 key={String(v)}
                 onClick={() => setForm((f) => ({ ...f, beautiful_stroke: v }))}
-                className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${
+                className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-all duration-150 active:scale-95 ${
                   form.beautiful_stroke === v
                     ? 'border-accent bg-accent/10 text-accent'
                     : 'border-border text-on-surface-secondary'
@@ -196,7 +196,7 @@ export function Assessment() {
               <button
                 key={String(v)}
                 onClick={() => setForm((f) => ({ ...f, alignment_correct: v }))}
-                className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${
+                className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-all duration-150 active:scale-95 ${
                   form.alignment_correct === v
                     ? 'border-accent bg-accent/10 text-accent'
                     : 'border-border text-on-surface-secondary'
@@ -218,7 +218,7 @@ export function Assessment() {
               <button
                 key={v}
                 onClick={() => setForm((f) => ({ ...f, result: v }))}
-                className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${
+                className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-all duration-150 active:scale-95 ${
                   form.result === v
                     ? 'border-accent bg-accent/10 text-accent'
                     : 'border-border text-on-surface-secondary'

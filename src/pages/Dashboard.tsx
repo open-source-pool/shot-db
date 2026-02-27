@@ -91,13 +91,13 @@ export function Dashboard() {
           <div className="grid grid-cols-2 gap-3">
             <Link
               to="/session/new"
-              className="p-4 rounded-xl bg-accent/10 border border-accent/30 text-center text-accent font-semibold"
+              className="p-4 rounded-xl bg-accent/10 border border-accent/30 text-center text-accent font-semibold active:scale-95 transition-transform duration-150"
             >
               Start Session
             </Link>
             <Link
               to="/assess"
-              className="p-4 rounded-xl bg-success/10 border border-success/30 text-center text-success font-semibold"
+              className="p-4 rounded-xl bg-success/10 border border-success/30 text-center text-success font-semibold active:scale-95 transition-transform duration-150"
             >
               Run Assessment
             </Link>
