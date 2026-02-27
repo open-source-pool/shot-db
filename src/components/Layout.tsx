@@ -1,5 +1,10 @@
 import { Outlet, NavLink, useLocation } from 'react-router'
 import { useEffect, useState } from 'react'
+import { Dashboard } from '../pages/Dashboard'
+import { Gallery } from '../pages/Gallery'
+import { SessionSetup } from '../pages/SessionSetup'
+import { SessionHistory } from '../pages/SessionHistory'
+import { Assessment } from '../pages/Assessment'
 
 const navItems = [
   { to: '/', label: 'Home' },
@@ -8,6 +13,8 @@ const navItems = [
   { to: '/sessions', label: 'History' },
   { to: '/assess', label: 'Assess' },
 ]
+
+const tabRoutes = new Set(['/', '/shots', '/session/new', '/sessions', '/assess'])
 
 export function Layout() {
   const [dark, setDark] = useState(() => {
@@ -23,6 +30,7 @@ export function Layout() {
   }, [dark])
 
   const location = useLocation()
+  const isTabRoute = tabRoutes.has(location.pathname)
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -40,8 +48,30 @@ export function Layout() {
       </header>
 
       <main className="flex-1 pb-24">
-        <div key={location.pathname} className="max-w-3xl mx-auto animate-fade-in">
-          <Outlet />
+        <div className="max-w-3xl mx-auto">
+          {/* Persistent tab pages — always mounted, toggled via CSS */}
+          <div style={{ display: location.pathname === '/' ? 'contents' : 'none' }}>
+            <Dashboard />
+          </div>
+          <div style={{ display: location.pathname === '/shots' ? 'contents' : 'none' }}>
+            <Gallery />
+          </div>
+          <div style={{ display: location.pathname === '/session/new' ? 'contents' : 'none' }}>
+            <SessionSetup />
+          </div>
+          <div style={{ display: location.pathname === '/sessions' ? 'contents' : 'none' }}>
+            <SessionHistory />
+          </div>
+          <div style={{ display: location.pathname === '/assess' ? 'contents' : 'none' }}>
+            <Assessment />
+          </div>
+
+          {/* Non-tab routes render via Outlet */}
+          {!isTabRoute && (
+            <div className="animate-fade-in">
+              <Outlet />
+            </div>
+          )}
         </div>
       </main>
 
