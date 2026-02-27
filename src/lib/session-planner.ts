@@ -165,10 +165,11 @@ export function planSession({
     practiceMinutes -= duration
   }
 
-  // Second pass: reinforcement only for score-1 (weakest) shots
+  // Second pass: reinforcement only for assessed score-1 (weakest) shots
   const reinforcedIds = new Set<string>()
   for (const scored of foundationTargets) {
     if (practiceMinutes <= 0) break
+    if (!scored.isAssessed) continue // unassessed shots need core reps, not reinforcement
     if (scored.aggregateScore > 1) continue // skip reinforcement for score 2+
     const duration = frequencyBlockMinutes(scored.shot.frequency, practiceMinutes)
     blocks.push(makeShotBlock(scored, 'reinforcement', duration))
@@ -186,11 +187,11 @@ export function planSession({
       foundationTargets.push(scored)
       practiceMinutes -= duration
     } else {
-      // No more unused shots — reinforce the least recently practiced shot
+      // No more unused shots — reinforce the least recently practiced assessed shot
       // that hasn't already received a reinforcement block.
       // Prefer score 1, then 2, then 3.
       const candidate = [...foundationTargets]
-        .filter((s) => !reinforcedIds.has(s.shot.id))
+        .filter((s) => s.isAssessed && !reinforcedIds.has(s.shot.id))
         .sort((a, b) => {
           if (a.aggregateScore !== b.aggregateScore) return a.aggregateScore - b.aggregateScore
           if (!a.lastPracticedAt) return -1
