@@ -2,18 +2,20 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router'
 import { useShots } from '../hooks/useShots'
 import { useAssessments } from '../hooks/useAssessments'
-import { getSessionCount, useLastPracticed } from '../hooks/useSessions'
+import { getSessionCount, useLastPracticed, useShotSuccessRates } from '../hooks/useSessions'
 import { prioritizeShots, isDueForSession, spacedPeriod } from '../lib/scoring'
 import { getImageUrl } from '../lib/supabase'
 import { getShotDisplayImage } from '../lib/variations'
 import { FREQUENCY_LABELS } from '../types'
+import { Sparkline } from '../components/Sparkline'
 
 export function Dashboard() {
   const { shots, loading: shotsLoading } = useShots()
   const { assessments, loading: assessLoading } = useAssessments()
   const { lastPracticedMap, loading: lpLoading } = useLastPracticed()
+  const { ratesByShot, loading: ratesLoading } = useShotSuccessRates()
   const [sessionNumber, setSessionNumber] = useState<number | null>(null)
-  const loading = shotsLoading || assessLoading || lpLoading
+  const loading = shotsLoading || assessLoading || lpLoading || ratesLoading
 
   useEffect(() => {
     getSessionCount().then((count) => setSessionNumber(count + 1))
@@ -111,9 +113,10 @@ export function Dashboard() {
               </h2>
               <div className="border border-border rounded-xl overflow-hidden">
                 {/* Header */}
-                <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-2 px-3 py-2 bg-surface-secondary text-xs font-semibold text-on-surface-secondary border-b border-border">
+                <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-2 px-3 py-2 bg-surface-secondary text-xs font-semibold text-on-surface-secondary border-b border-border">
                   <span className="w-10" />
                   <span>Shot</span>
+                  <span className="w-16 text-center">Trend</span>
                   <span className="w-12 text-center">Score</span>
                   <span className="w-12 text-center">Freq</span>
                   <span className="w-20 text-center">Next Due</span>
@@ -135,12 +138,13 @@ export function Dashboard() {
                     : null
                   const isDueNow = sessionNumber !== null && isDueForSession(aggregateScore, sessionNumber, freq)
                   const primaryImage = getShotDisplayImage(shot)
+                  const rates = ratesByShot.get(shot.id)
 
                   return (
                     <Link
                       key={shot.id}
                       to={`/shots/${shot.slug}`}
-                      className={`grid grid-cols-[auto_1fr_auto_auto_auto] gap-2 px-3 py-2.5 text-sm border-b border-border last:border-b-0 hover:bg-surface-secondary/50 transition-colors ${
+                      className={`grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-2 px-3 py-2.5 text-sm border-b border-border last:border-b-0 hover:bg-surface-secondary/50 transition-colors ${
                         isDueNow ? 'bg-accent/5' : ''
                       }`}
                     >
@@ -159,6 +163,13 @@ export function Dashboard() {
                         )}
                       </div>
                       <span className="truncate font-medium self-center">{shot.title}</span>
+                      <span className="w-20 flex items-center justify-center">
+                        {rates && rates.length > 0 ? (
+                          <Sparkline data={rates.map((r) => r.rate)} width={80} height={32} />
+                        ) : (
+                          <span className="text-[10px] text-on-surface-secondary">—</span>
+                        )}
+                      </span>
                       <span className="w-12 text-center">
                         <span
                           className={`inline-block w-6 h-6 rounded-full text-xs font-bold leading-6 text-center ${

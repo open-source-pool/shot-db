@@ -102,7 +102,7 @@ export interface ShotWithScore {
 /**
  * Prioritize shots for training using the v2 algorithm:
  *
- * 1. Unassessed shots first (sub-sort: frequency DESC, alpha)
+ * 1. Unassessed shots first (sub-sort: least recently practiced, frequency DESC, alpha)
  * 2. Composite priority score DESC (combines skill + frequency)
  * 3. Least recently practiced first (recency tiebreaker)
  * 4. Alphabetical
@@ -144,8 +144,13 @@ export function prioritizeShots(
     // 1. Unassessed shots first
     if (a.isAssessed !== b.isAssessed) return a.isAssessed ? 1 : -1
 
-    // For unassessed: frequency DESC, then alpha
+    // For unassessed: least recently practiced first, then frequency DESC, then alpha
     if (!a.isAssessed && !b.isAssessed) {
+      if (a.lastPracticedAt !== b.lastPracticedAt) {
+        if (!a.lastPracticedAt) return -1
+        if (!b.lastPracticedAt) return 1
+        return a.lastPracticedAt.localeCompare(b.lastPracticedAt)
+      }
       if (a.shot.frequency !== b.shot.frequency)
         return b.shot.frequency - a.shot.frequency
       return a.shot.title.localeCompare(b.shot.title)

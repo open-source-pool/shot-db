@@ -1,13 +1,17 @@
 import { useState } from 'react'
-import { useParams, Link } from 'react-router'
+import { Link } from 'react-router'
 import { useSessionById, updateBlock } from '../hooks/useSession'
 import { supabase } from '../lib/supabase'
 import { getImageUrl } from '../lib/supabase'
 import { getDefaultVariation } from '../lib/variations'
 import type { SessionBlock } from '../types'
 
-export function SessionReview() {
-  const { id } = useParams<{ id: string }>()
+interface SessionReviewProps {
+  sessionId?: string
+}
+
+export function SessionReview({ sessionId }: SessionReviewProps) {
+  const id = sessionId
   const { session, loading, refetch } = useSessionById(id)
   const [editingBlock, setEditingBlock] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({ attempts: 0, successes: 0, notes: '' })
@@ -128,9 +132,18 @@ export function SessionReview() {
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start">
                     <div>
-                      <span className="font-medium">
-                        {shot?.title ?? block.block_type.charAt(0).toUpperCase() + block.block_type.slice(1)}
-                      </span>
+                      {shot?.slug ? (
+                        <Link
+                          to={`/shots/${shot.slug}`}
+                          className="font-medium text-accent hover:underline"
+                        >
+                          {shot.title}
+                        </Link>
+                      ) : (
+                        <span className="font-medium">
+                          {block.block_type.charAt(0).toUpperCase() + block.block_type.slice(1)}
+                        </span>
+                      )}
                       {variation && shot?.variations && shot.variations.length > 1 && (
                         <span className="text-xs text-accent ml-2">{variation.title}</span>
                       )}
