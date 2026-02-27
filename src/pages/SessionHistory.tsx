@@ -31,13 +31,15 @@ export function SessionHistory() {
             const totalAttempts = shotBlocks.reduce((s, b) => s + (b.attempts ?? 0), 0)
             const totalSuccesses = shotBlocks.reduce((s, b) => s + (b.successes ?? 0), 0)
             const rate = totalAttempts > 0 ? Math.round((totalSuccesses / totalAttempts) * 100) : null
-            const shotNames = [
-              ...new Set(
-                shotBlocks
-                  .map((b) => (b.shot as { title?: string } | undefined)?.title)
-                  .filter(Boolean)
-              ),
-            ]
+            const shotEntries: { title: string; slug: string }[] = []
+            const seenIds = new Set<string>()
+            for (const b of shotBlocks) {
+              const shot = b.shot as { id?: string; title?: string; slug?: string } | undefined
+              if (shot?.title && shot?.slug && shot?.id && !seenIds.has(shot.id)) {
+                seenIds.add(shot.id)
+                shotEntries.push({ title: shot.title, slug: shot.slug })
+              }
+            }
 
             return (
               <Link
@@ -59,9 +61,20 @@ export function SessionHistory() {
                   </span>
                 </div>
 
-                {shotNames.length > 0 && (
+                {shotEntries.length > 0 && (
                   <p className="text-xs text-on-surface-secondary mb-2 truncate">
-                    {shotNames.join(', ')}
+                    {shotEntries.map((s, j) => (
+                      <span key={s.slug}>
+                        {j > 0 && ', '}
+                        <Link
+                          to={`/shots/${s.slug}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-accent hover:underline"
+                        >
+                          {s.title}
+                        </Link>
+                      </span>
+                    ))}
                   </p>
                 )}
 

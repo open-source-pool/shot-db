@@ -2,7 +2,6 @@ import { Routes, Route } from 'react-router'
 import { Layout } from './components/Layout'
 import { ShotDetail } from './pages/ShotDetail'
 import { SessionActive } from './pages/SessionActive'
-import { SessionReview } from './pages/SessionReview'
 import { AddShot } from './pages/AddShot'
 
 export default function App() {
@@ -16,10 +15,12 @@ export default function App() {
         <Route path="sessions" element={null} />
         <Route path="assess" element={null} />
 
+        {/* Session review — rendered persistently in Layout as part of History tab */}
+        <Route path="session/:id/review" element={null} />
+
         {/* Non-tab routes — rendered via Outlet */}
         <Route path="shots/:slug" element={<ShotDetail />} />
         <Route path="session/:id" element={<SessionActive />} />
-        <Route path="session/:id/review" element={<SessionReview />} />
         <Route path="add-shot" element={<AddShot />} />
       </Route>
     </Routes>

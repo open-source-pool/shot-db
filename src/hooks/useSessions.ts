@@ -96,6 +96,65 @@ export function useSessions() {
   return { sessions, loading, refetch: fetchSessions }
 }
 
+/**
+ * Per-session success rate for each shot across all sessions.
+ * Returns Map<shot_id, { rate: number; sessionDate: string }[]> sorted chronologically.
+ */
+export function useShotSuccessRates() {
+  const [ratesByShot, setRatesByShot] = useState<Map<string, { rate: number; sessionDate: string }[]>>(new Map())
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchRates()
+  }, [])
+
+  async function fetchRates() {
+    setLoading(true)
+    const { data } = await supabase
+      .from('session_blocks')
+      .select('shot_id, attempts, successes, session:sessions(started_at)')
+      .not('shot_id', 'is', null)
+      .gt('attempts', 0)
+
+    const byShot = new Map<string, Map<string, { attempts: number; successes: number; date: string }>>()
+    for (const row of data ?? []) {
+      const shotId = row.shot_id as string
+      const sessionDate = (row.session as any)?.started_at as string | undefined
+      if (!sessionDate) continue
+
+      if (!byShot.has(shotId)) byShot.set(shotId, new Map())
+      const sessionMap = byShot.get(shotId)!
+      const existing = sessionMap.get(sessionDate)
+      if (existing) {
+        existing.attempts += row.attempts ?? 0
+        existing.successes += row.successes ?? 0
+      } else {
+        sessionMap.set(sessionDate, {
+          attempts: row.attempts ?? 0,
+          successes: row.successes ?? 0,
+          date: sessionDate,
+        })
+      }
+    }
+
+    const result = new Map<string, { rate: number; sessionDate: string }[]>()
+    for (const [shotId, sessionMap] of byShot) {
+      const points = [...sessionMap.values()]
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((s) => ({
+          rate: s.attempts > 0 ? s.successes / s.attempts : 0,
+          sessionDate: s.date,
+        }))
+      if (points.length > 0) result.set(shotId, points)
+    }
+
+    setRatesByShot(result)
+    setLoading(false)
+  }
+
+  return { ratesByShot, loading }
+}
+
 /** Get the count of past sessions for auto-deriving session number */
 export async function getSessionCount(): Promise<number> {
   const { count } = await supabase
