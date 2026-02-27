@@ -15,16 +15,39 @@ export function SessionActive() {
   const [editingField, setEditingField] = useState<'attempts' | 'successes' | null>(null)
   const [editValue, setEditValue] = useState('')
 
-  // Timer
+  // Wall-clock anchors so the timer survives backgrounding / phone lock
+  const startedAtRef = useRef(Date.now())
+  const pausedElapsedRef = useRef(0)
+
+  const getElapsed = () => {
+    if (!running) return pausedElapsedRef.current
+    return pausedElapsedRef.current + Math.floor((Date.now() - startedAtRef.current) / 1000)
+  }
+
+  // Timer — uses wall-clock diff instead of counter increment
   useEffect(() => {
     if (running) {
-      intervalRef.current = setInterval(() => {
-        setElapsed((e) => e + 1)
-      }, 1000)
+      startedAtRef.current = Date.now()
+      const tick = () => setElapsed(getElapsed())
+      tick()
+      intervalRef.current = setInterval(tick, 1000)
+    } else {
+      pausedElapsedRef.current = elapsed
     }
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
+  }, [running])
+
+  // Recalculate immediately when tab regains visibility (phone unlock / tab switch)
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && running) {
+        setElapsed(getElapsed())
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [running])
 
   if (loading || !session)

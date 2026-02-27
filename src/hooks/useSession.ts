@@ -11,8 +11,8 @@ export function useSessionById(sessionId: string | undefined) {
     fetchSession(sessionId)
   }, [sessionId])
 
-  async function fetchSession(id: string) {
-    setLoading(true)
+  async function fetchSession(id: string, isRefetch = false) {
+    if (!isRefetch) setLoading(true)
     const { data } = await supabase
       .from('sessions')
       .select(`
@@ -33,10 +33,10 @@ export function useSessionById(sessionId: string | undefined) {
         ),
       })
     }
-    setLoading(false)
+    if (!isRefetch) setLoading(false)
   }
 
-  return { session, loading, refetch: () => sessionId && fetchSession(sessionId) }
+  return { session, loading, refetch: () => sessionId && fetchSession(sessionId, true) }
 }
 
 export async function createSession(durationMinutes: number) {
