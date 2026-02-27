@@ -165,12 +165,15 @@ export function planSession({
     practiceMinutes -= duration
   }
 
-  // Second pass: reinforcement only for score-1 (weakest) shots
+  // Second pass: reinforcement only for assessed score-1 (weakest) shots
+  const reinforcedIds = new Set<string>()
   for (const scored of foundationTargets) {
     if (practiceMinutes <= 0) break
+    if (!scored.isAssessed) continue // unassessed shots need core reps, not reinforcement
     if (scored.aggregateScore > 1) continue // skip reinforcement for score 2+
     const duration = frequencyBlockMinutes(scored.shot.frequency, practiceMinutes)
     blocks.push(makeShotBlock(scored, 'reinforcement', duration))
+    reinforcedIds.add(scored.shot.id)
     practiceMinutes -= duration
   }
 
@@ -184,12 +187,21 @@ export function planSession({
       foundationTargets.push(scored)
       practiceMinutes -= duration
     } else {
-      // No more shots available — add reinforcement for weakest existing
-      const weakest = foundationTargets.find((s) => s.aggregateScore === 1)
-        ?? foundationTargets[0]
-      if (!weakest) break
+      // No more unused shots — reinforce the least recently practiced assessed shot
+      // that hasn't already received a reinforcement block.
+      // Prefer score 1, then 2, then 3.
+      const candidate = [...foundationTargets]
+        .filter((s) => s.isAssessed && !reinforcedIds.has(s.shot.id))
+        .sort((a, b) => {
+          if (a.aggregateScore !== b.aggregateScore) return a.aggregateScore - b.aggregateScore
+          if (!a.lastPracticedAt) return -1
+          if (!b.lastPracticedAt) return 1
+          return a.lastPracticedAt.localeCompare(b.lastPracticedAt)
+        })[0]
+      if (!candidate) break
       const duration = Math.min(TARGET_BLOCK_MINUTES, practiceMinutes)
-      blocks.push(makeShotBlock(weakest, 'reinforcement', duration))
+      blocks.push(makeShotBlock(candidate, 'reinforcement', duration))
+      reinforcedIds.add(candidate.shot.id)
       practiceMinutes -= duration
     }
   }

@@ -16,17 +16,41 @@ export function SessionActive() {
   const [editingField, setEditingField] = useState<'attempts' | 'successes' | null>(null)
   const [editValue, setEditValue] = useState('')
   const [selectedVariationId, setSelectedVariationId] = useState<string | null>(null)
+  const [countPopKey, setCountPopKey] = useState(0)
 
-  // Timer
+  // Wall-clock anchors so the timer survives backgrounding / phone lock
+  const startedAtRef = useRef(Date.now())
+  const pausedElapsedRef = useRef(0)
+
+  const getElapsed = () => {
+    if (!running) return pausedElapsedRef.current
+    return pausedElapsedRef.current + Math.floor((Date.now() - startedAtRef.current) / 1000)
+  }
+
+  // Timer — uses wall-clock diff instead of counter increment
   useEffect(() => {
     if (running) {
-      intervalRef.current = setInterval(() => {
-        setElapsed((e) => e + 1)
-      }, 1000)
+      startedAtRef.current = Date.now()
+      const tick = () => setElapsed(getElapsed())
+      tick()
+      intervalRef.current = setInterval(tick, 1000)
+    } else {
+      pausedElapsedRef.current = elapsed
     }
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
+  }, [running])
+
+  // Recalculate immediately when tab regains visibility (phone unlock / tab switch)
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && running) {
+        setElapsed(getElapsed())
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [running])
 
   // Reset selected variation when block changes
@@ -107,6 +131,7 @@ export function SessionActive() {
       updates.successes = (block.successes ?? 0) + 1
     }
     await updateBlock(block.id, updates)
+    setCountPopKey((k) => k + 1)
     refetch()
   }
 
@@ -116,12 +141,14 @@ export function SessionActive() {
     const updates: Partial<Pick<SessionBlock, 'attempts' | 'successes'>> = {}
 
     if (editingField === 'attempts') {
-      updates.attempts = val
-      if ((block.successes ?? 0) > val) {
-        updates.successes = val
-      }
+      // Editing misses: attempts = hits + new misses
+      const hits = block.successes ?? 0
+      updates.attempts = hits + val
     } else {
-      updates.successes = Math.min(val, block.attempts ?? 0)
+      // Editing hits: keep misses the same, recompute attempts
+      const misses = (block.attempts ?? 0) - (block.successes ?? 0)
+      updates.successes = val
+      updates.attempts = val + misses
     }
 
     await updateBlock(block.id, updates)
@@ -132,7 +159,12 @@ export function SessionActive() {
 
   function startEdit(field: 'attempts' | 'successes') {
     setEditingField(field)
-    setEditValue(String(field === 'attempts' ? (block?.attempts ?? 0) : (block?.successes ?? 0)))
+    if (field === 'attempts') {
+      // Show current miss count
+      setEditValue(String((block?.attempts ?? 0) - (block?.successes ?? 0)))
+    } else {
+      setEditValue(String(block?.successes ?? 0))
+    }
   }
 
   function nextBlock() {
@@ -235,7 +267,7 @@ export function SessionActive() {
         </div>
       )}
 
-      <div className="px-4 space-y-3">
+      <div key={`block-${currentBlockIndex}`} className="px-4 space-y-3 animate-fade-in">
         {/* Block info */}
         <div>
           <h2 className="font-semibold text-lg">
@@ -259,47 +291,20 @@ export function SessionActive() {
             <div className="flex gap-3">
               <button
                 onClick={() => recordAttempt(true)}
-                className="flex-1 py-4 bg-success/10 text-success font-semibold rounded-xl border border-success/30 text-lg active:bg-success/20"
+                className="flex-1 py-4 bg-success/10 text-success font-semibold rounded-xl border border-success/30 text-lg active:scale-95 transition-transform duration-150"
               >
                 Hit
               </button>
               <button
                 onClick={() => recordAttempt(false)}
-                className="flex-1 py-4 bg-danger/10 text-danger font-semibold rounded-xl border border-danger/30 text-lg active:bg-danger/20"
+                className="flex-1 py-4 bg-danger/10 text-danger font-semibold rounded-xl border border-danger/30 text-lg active:scale-95 transition-transform duration-150"
               >
                 Miss
               </button>
             </div>
 
             <div className="flex justify-around text-center">
-              {/* Attempts — tap to edit */}
-              <button
-                onClick={() => startEdit('attempts')}
-                className="p-2 rounded-lg hover:bg-surface-secondary transition-colors"
-              >
-                {editingField === 'attempts' ? (
-                  <div className="flex flex-col items-center gap-1">
-                    <input
-                      type="number"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={handleEditSave}
-                      onKeyDown={(e) => e.key === 'Enter' && handleEditSave()}
-                      autoFocus
-                      className="w-16 text-center text-xl font-bold border border-accent rounded px-1 bg-surface text-on-surface"
-                      min={0}
-                    />
-                    <div className="text-xs text-accent">Enter to save</div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-2xl font-bold">{block.attempts ?? 0}</div>
-                    <div className="text-xs text-on-surface-secondary">Attempts</div>
-                  </>
-                )}
-              </button>
-
-              {/* Successes — tap to edit */}
+              {/* Hits — tap to edit */}
               <button
                 onClick={() => startEdit('successes')}
                 className="p-2 rounded-lg hover:bg-surface-secondary transition-colors"
@@ -320,15 +325,42 @@ export function SessionActive() {
                   </div>
                 ) : (
                   <>
-                    <div className="text-2xl font-bold text-success">{block.successes ?? 0}</div>
+                    <div key={`hits-${countPopKey}`} className="text-2xl font-bold text-success animate-count-pop">{block.successes ?? 0}</div>
                     <div className="text-xs text-on-surface-secondary">Hits</div>
+                  </>
+                )}
+              </button>
+
+              {/* Misses — tap to edit */}
+              <button
+                onClick={() => startEdit('attempts')}
+                className="p-2 rounded-lg hover:bg-surface-secondary transition-colors"
+              >
+                {editingField === 'attempts' ? (
+                  <div className="flex flex-col items-center gap-1">
+                    <input
+                      type="number"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={handleEditSave}
+                      onKeyDown={(e) => e.key === 'Enter' && handleEditSave()}
+                      autoFocus
+                      className="w-16 text-center text-xl font-bold border border-accent rounded px-1 bg-surface text-on-surface"
+                      min={0}
+                    />
+                    <div className="text-xs text-accent">Enter to save</div>
+                  </div>
+                ) : (
+                  <>
+                    <div key={`misses-${countPopKey}`} className="text-2xl font-bold text-danger animate-count-pop">{(block.attempts ?? 0) - (block.successes ?? 0)}</div>
+                    <div className="text-xs text-on-surface-secondary">Misses</div>
                   </>
                 )}
               </button>
 
               {/* Rate */}
               <div className="p-2">
-                <div className="text-2xl font-bold">
+                <div key={`rate-${countPopKey}`} className="text-2xl font-bold animate-count-pop">
                   {block.attempts
                     ? `${Math.round(((block.successes ?? 0) / block.attempts) * 100)}%`
                     : '—'}

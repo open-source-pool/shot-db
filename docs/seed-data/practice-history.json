@@ -1,0 +1,30 @@
+{
+  "description": "Historical practice data. Each entry maps a shot slug to dates it was practiced.",
+  "practices": {
+    "3-rail-stun-draw": ["2025-11-23", "2025-12-30", "2026-02-21"],
+    "blind-rolling-cut": ["2025-12-07"],
+    "bulk-return-1": ["2026-01-01"],
+    "check-side-stun-out": ["2025-12-02"],
+    "drag-reverse-spin": ["2025-12-02"],
+    "follow-inside": ["2025-11-14", "2025-11-17", "2025-12-08"],
+    "left-cut": ["2025-12-25", "2025-12-26", "2026-01-17"],
+    "long-long": ["2025-12-07", "2025-12-30"],
+    "long-long-soft": ["2026-01-01"],
+    "long-rail-60-cut": ["2026-02-21"],
+    "long-short-long-up-table": ["2025-12-01", "2026-01-24", "2026-01-25"],
+    "md-straight-draw": ["2026-01-01"],
+    "off-angle-side": ["2025-11-19", "2025-12-23", "2025-12-24"],
+    "pocket-hanger": ["2025-11-25"],
+    "rail-blind-2-rails": ["2025-12-07", "2026-02-21"],
+    "rail-clinger": ["2025-11-14", "2025-12-08", "2026-02-21", "2026-02-22", "2026-02-24"],
+    "running-side-stun-center": ["2025-11-23", "2025-12-29"],
+    "short-short": ["2026-02-01"],
+    "slow-roll": ["2025-11-25"],
+    "spin-off": ["2025-12-01"],
+    "straight-draw-extreme-side": ["2025-12-08"],
+    "thin-clip": ["2025-12-08", "2025-12-30"],
+    "thin-spin-opp-rail": ["2025-11-19", "2025-12-29"],
+    "up-down-safe": ["2025-11-30"],
+    "yoyo": ["2025-11-30", "2025-12-24", "2025-12-25", "2026-01-01", "2026-02-17", "2026-02-23", "2026-02-22"]
+  }
+}

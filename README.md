@@ -57,12 +57,15 @@ pnpm db:push
 
 ### 4. Seed data (optional)
 
-Place shot images in `docs/seed-data/assets/` and ensure `docs/seed-data/shots.json` and `docs/seed-data/tags.json` exist, then:
+Place shot images in `docs/seed-data/assets/` and ensure `docs/seed-data/shots.json` and `docs/seed-data/tags.json` exist, then run in order:
 
 ```bash
-pnpm seed
-pnpm seed:assessments
+pnpm seed                # Shots, tags, images, and variations
+pnpm seed:assessments    # Assessment scores
+pnpm seed:history        # Historical practice sessions
 ```
+
+The history seed reads `docs/seed-data/practice-history.json` which maps shot slugs to dates practiced. It groups all shots on the same date into one session with core blocks. Slugs not found in the database are skipped and reported.
 
 ### 5. Run the dev server
 
@@ -85,6 +88,7 @@ Open [http://localhost:5173/shot-db/](http://localhost:5173/shot-db/)
 | `pnpm db:status` | Show local vs remote migration status |
 | `pnpm seed` | Seed shots, tags, and images |
 | `pnpm seed:assessments` | Seed assessment scores |
+| `pnpm seed:history` | Seed historical practice sessions |
 
 ## Database Migrations
 
