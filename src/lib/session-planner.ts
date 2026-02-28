@@ -1,8 +1,8 @@
 import type { Shot, Assessment } from '../types'
-import { prioritizeShots, isDueForSession, spacedPeriod, focusHint, type ShotWithScore } from './scoring'
+import { prioritizeShots, sortByRotation, spacedPeriod, focusHint, type ShotWithScore } from './scoring'
 
 const SHOTS_PER_MINUTE = 2
-const TARGET_BLOCK_MINUTES = 15
+const BLOCK_MINUTES = 20
 const DEFAULT_WARMUP = 10
 const DEFAULT_COOLDOWN = 10
 
@@ -23,17 +23,9 @@ export interface SessionPlan {
   sessionNumber: number
 }
 
-/**
- * Compute block duration scaled by shot frequency.
- * High-freq shots get ~40% longer blocks.
- *
- *   freq 1 → target * 1.0
- *   freq 2 → target * 1.2
- *   freq 3 → target * 1.4
- */
-function frequencyBlockMinutes(frequency: number, remaining: number): number {
-  const scaled = Math.round(TARGET_BLOCK_MINUTES * (0.8 + frequency * 0.2))
-  return Math.min(scaled, remaining)
+/** Number of core shots that fit in the given practice time. */
+function coreSlotCount(practiceMinutes: number): number {
+  return Math.floor(practiceMinutes / BLOCK_MINUTES)
 }
 
 export function planSession({
@@ -70,14 +62,8 @@ export function planSession({
 
   let practiceMinutes = Math.max(0, totalMinutes - warmMinutes - coolMinutes)
 
-  // Filter eligible shots for this session based on spaced repetition
-  const eligible = prioritized.filter((s) =>
-    isDueForSession(s.aggregateScore, sessionNumber, s.shot.frequency)
-  )
-  const backfill = prioritized.filter(
-    (s) => !isDueForSession(s.aggregateScore, sessionNumber, s.shot.frequency)
-  )
-  const queue = [...eligible, ...backfill]
+  // Sort by rotation order (same as dashboard): due date → priority → alpha.
+  const queue = sortByRotation(prioritized, sessionNumber)
 
   const blocks: PlanBlock[] = []
   const usedIds = new Set<string>()
@@ -119,12 +105,12 @@ export function planSession({
     let focus = ''
     if (assessment) {
       const hint = focusHint(assessment)
-      if (type === 'reinforcement') focus = `Reinforce feel under fatigue. ${hint}`
+      if (type === 'reinforcement') focus = `Quick review — stay sharp. ${hint}`
       else focus = `Same-instance reps. ${hint}`
     } else {
       focus =
         type === 'reinforcement'
-          ? 'Reinforcement: repeat best layout.'
+          ? 'Quick review — get a feel for this shot.'
           : 'First assessment needed — focus on getting comfortable.'
     }
 
@@ -148,61 +134,26 @@ export function planSession({
     }
   }
 
-  // Scale foundation shot count with session duration: max(2, floor(practiceMinutes / 20))
-  const recommendedCount = Math.min(
-    Math.max(2, Math.floor(practiceMinutes / 20)),
-    queue.length
-  )
+  // Core blocks: each shot gets a fixed 20-min block.
+  const coreCount = Math.min(coreSlotCount(practiceMinutes), queue.length)
 
-  // First pass: core reps for each foundation shot (frequency-scaled duration)
-  while (practiceMinutes > 0 && foundationTargets.length < recommendedCount) {
+  for (let i = 0; i < coreCount; i++) {
     const scored = nextShot()
     if (!scored) break
     usedIds.add(scored.shot.id)
-    const duration = frequencyBlockMinutes(scored.shot.frequency, practiceMinutes)
-    blocks.push(makeShotBlock(scored, 'core', duration))
+    blocks.push(makeShotBlock(scored, 'core', BLOCK_MINUTES))
     foundationTargets.push(scored)
-    practiceMinutes -= duration
+    practiceMinutes -= BLOCK_MINUTES
   }
 
-  // Second pass: reinforcement only for assessed score-1 (weakest) shots
-  const reinforcedIds = new Set<string>()
-  for (const scored of foundationTargets) {
-    if (practiceMinutes <= 0) break
-    if (!scored.isAssessed) continue // unassessed shots need core reps, not reinforcement
-    if (scored.aggregateScore > 1) continue // skip reinforcement for score 2+
-    const duration = frequencyBlockMinutes(scored.shot.frequency, practiceMinutes)
-    blocks.push(makeShotBlock(scored, 'reinforcement', duration))
-    reinforcedIds.add(scored.shot.id)
-    practiceMinutes -= duration
-  }
-
-  // Fill remaining time with more shots
-  while (practiceMinutes > 0) {
-    const scored = nextShot()
-    if (scored) {
-      usedIds.add(scored.shot.id)
-      const duration = frequencyBlockMinutes(scored.shot.frequency, practiceMinutes)
-      blocks.push(makeShotBlock(scored, 'core', duration))
-      foundationTargets.push(scored)
-      practiceMinutes -= duration
-    } else {
-      // No more unused shots — reinforce the least recently practiced assessed shot
-      // that hasn't already received a reinforcement block.
-      // Prefer score 1, then 2, then 3.
-      const candidate = [...foundationTargets]
-        .filter((s) => s.isAssessed && !reinforcedIds.has(s.shot.id))
-        .sort((a, b) => {
-          if (a.aggregateScore !== b.aggregateScore) return a.aggregateScore - b.aggregateScore
-          if (!a.lastPracticedAt) return -1
-          if (!b.lastPracticedAt) return 1
-          return a.lastPracticedAt.localeCompare(b.lastPracticedAt)
-        })[0]
-      if (!candidate) break
-      const duration = Math.min(TARGET_BLOCK_MINUTES, practiceMinutes)
-      blocks.push(makeShotBlock(candidate, 'reinforcement', duration))
-      reinforcedIds.add(candidate.shot.id)
-      practiceMinutes -= duration
+  // Reinforcement: if there's remainder time (practiceMinutes % 20), add one
+  // bonus shot as a quick review. Draws from the same rotation-sorted queue
+  // so the pick matches the dashboard order.
+  if (practiceMinutes > 0) {
+    const bonus = nextShot()
+    if (bonus) {
+      usedIds.add(bonus.shot.id)
+      blocks.push(makeShotBlock(bonus, 'reinforcement', practiceMinutes))
     }
   }
 

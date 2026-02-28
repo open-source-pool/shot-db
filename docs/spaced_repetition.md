@@ -120,8 +120,10 @@ A session is divided into timed blocks. The planner takes a total duration and f
 ### Structure
 
 ```
-[Warmup]  →  [Core blocks × N shots]  →  [Reinforcement for weak shots]  →  [Cooldown]
+[Warmup]  →  [Core blocks × N unique shots]  →  [Reinforcement: bonus shot]  →  [Cooldown]
 ```
+
+**Each shot appears at most once per session.** No shot is ever repeated within the same session plan.
 
 ### Parameters
 
@@ -129,28 +131,18 @@ A session is divided into timed blocks. The planner takes a total duration and f
 |-----------|-------|
 | Warmup | 10 min (scales down for short sessions) |
 | Cooldown | 10 min (scales down for short sessions) |
-| Target block length | 15 min |
-| Shots per session | `max(2, floor(practiceMinutes / 20))` |
+| Block length | 20 min (fixed) |
 | Shots per minute | 2 (rep rate estimate) |
 
-A 90-min session (70 min practice) schedules 3–4 shots.
-A 60-min session (40 min practice) schedules 2 shots.
+### Filling practice time
 
-### Block duration scales with frequency
+Each core shot gets a fixed **20-minute block**. The number of core shots is `floor(practiceMinutes / 20)`. Core blocks draw from the full priority queue (eligible/due shots first, then backfill). If the remaining time after core blocks is not zero (`practiceMinutes % 20`), a single **reinforcement** block fills the remainder with a quick review of the next eligible (due) shot not already in the session. Reinforcement **only** draws from due shots — it never pulls in not-due or backfill shots. If no eligible shot remains, reinforcement is skipped.
 
-High-frequency shots get proportionally longer blocks:
-
-```
-blockMinutes = targetBlock * (0.8 + frequency * 0.2)
-```
-
-- Freq 1 → 15 min
-- Freq 2 → 18 min
-- Freq 3 → 21 min
-
-### Reinforcement
-
-Reinforcement blocks (a second pass on the same shot) are only added for **score-1 shots** when time permits. Score-2 and score-3 shots get a single core block. This frees up session time for more variety.
+| Session | Practice time | Core shots | Reinforcement |
+|---------|---------------|------------|---------------|
+| 60 min  | 40 min        | 2 × 20    | —             |
+| 90 min  | 70 min        | 3 × 20    | 10 min        |
+| 120 min | 100 min       | 5 × 20    | —             |
 
 ### Block types
 
@@ -158,7 +150,7 @@ Reinforcement blocks (a second pass on the same shot) are only added for **score
 |------|---------|
 | `warmup` | Loosen arm, calibrate cue-ball control, rehearse pre-shot routine |
 | `core` | Primary repetitions — building consistency |
-| `reinforcement` | Second pass under fatigue — only for score-1 shots |
+| `reinforcement` | Quick review of a bonus high-priority shot not already in the session |
 | `cooldown` | Stretch, breathing, capture session takeaways |
 
 ### Coaching focus hints
@@ -200,15 +192,16 @@ This data feeds the recency tiebreaker (last-practiced date) and the session his
 3. "Stun to center" — score 1, freq 2, last practiced session 4 → priority 8
 4. "Rail cut" — score 2, freq 3, last practiced session 1 → priority 7
 
-**Session plan:**
+**Session plan (90 min → 70 min practice → 3 × 20 + 10 remainder):**
 ```
 Warmup: 10 min
-Core: Cross-side bank — 21 min (freq 3 bonus)
-Core: Thin cut to corner — 21 min (freq 3 bonus, + reinforcement since score 1)
-Core: Stun to center — 18 min (freq 2)
+Core: Cross-side bank — 20 min
+Core: Thin cut to corner — 20 min
+Core: Stun to center — 20 min
+Reinforcement: Rail cut — 10 min (remainder, quick review)
 Cooldown: 10 min
 ```
 
-Remaining ~11 min would go to reinforcement of "Thin cut to corner" (the score-1 shot).
+Each shot appears exactly once. The 10-min remainder goes to a reinforcement block for "Rail cut" — the next highest-priority shot not already in the session.
 
 Next session (#6), "Cross-side bank" will have an assessment and enter the normal rotation. "Thin cut to corner" isn't due until session 7 (score 1, freq 3 = every 2 sessions). "Stun to center" isn't due until session 8 (score 1, freq 2 = every 3 sessions). "Rail cut" isn't due until session 9 (score 2, freq 3 = every 4 sessions).
