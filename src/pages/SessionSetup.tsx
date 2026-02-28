@@ -52,21 +52,14 @@ export function SessionSetup() {
 
   function handleSwapShot(blockIndex: number, newShot: Shot) {
     if (!plan) return
-    const oldShotId = plan[blockIndex].shot?.id
-    const updated = plan.map((block) => {
-      if (block.shot?.id === oldShotId) {
-        const typeLabel =
-          block.blockType === 'core'
-            ? 'Core reps'
-            : 'Reinforcement'
-        return {
-          ...block,
-          shot: newShot,
-          label: `${typeLabel}: ${newShot.title}`,
-        }
-      }
-      return block
-    })
+    const block = plan[blockIndex]
+    const typeLabel =
+      block.blockType === 'core' ? 'Core reps' : 'Reinforcement'
+    const updated = plan.map((b, i) =>
+      i === blockIndex
+        ? { ...b, shot: newShot, label: `${typeLabel}: ${newShot.title}` }
+        : b
+    )
     setPlan(updated)
     setSwappingIndex(null)
   }

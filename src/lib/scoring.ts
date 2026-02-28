@@ -92,6 +92,26 @@ export function focusHint(a: {
   return cues.join(' | ')
 }
 
+/** Next session number where a shot is due for review. */
+export function nextDueSession(s: ShotWithScore, sessionNumber: number): number {
+  const period = spacedPeriod(s.aggregateScore, s.shot.frequency)
+  for (let n = sessionNumber; n < sessionNumber + period; n++) {
+    if (isDueForSession(s.aggregateScore, n, s.shot.frequency)) return n
+  }
+  return sessionNumber + period
+}
+
+/** Sort shots by rotation schedule: due date → priority → alpha. */
+export function sortByRotation(shots: ShotWithScore[], sessionNumber: number): ShotWithScore[] {
+  return [...shots].sort((a, b) => {
+    const aDue = nextDueSession(a, sessionNumber)
+    const bDue = nextDueSession(b, sessionNumber)
+    if (aDue !== bDue) return aDue - bDue
+    if (a.priorityScore !== b.priorityScore) return b.priorityScore - a.priorityScore
+    return a.shot.title.localeCompare(b.shot.title)
+  })
+}
+
 export interface ShotWithScore {
   shot: Shot
   aggregateScore: number

@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { useShots } from '../hooks/useShots'
 import { useAssessments } from '../hooks/useAssessments'
 import { getSessionCount, useLastPracticed, useShotSuccessRates } from '../hooks/useSessions'
-import { prioritizeShots, isDueForSession, spacedPeriod } from '../lib/scoring'
+import { prioritizeShots, nextDueSession, sortByRotation } from '../lib/scoring'
 import type { ShotWithScore } from '../lib/scoring'
 import { getImageUrl } from '../lib/supabase'
 import { getShotDisplayImage } from '../lib/variations'
@@ -26,23 +26,9 @@ export function Dashboard() {
   const prioritized = prioritizeShots(shots, assessments, lastPracticedMap, lastPracticedSessionAgo)
   const assessedCount = new Set(assessments.map((a) => a.shot_id)).size
 
-  // Compute next-due session for each shot and sort by rotation order
-  function nextDueSession(s: ShotWithScore): number {
-    if (sessionNumber === null) return 0
-    const period = spacedPeriod(s.aggregateScore, s.shot.frequency)
-    for (let n = sessionNumber; n < sessionNumber + period; n++) {
-      if (isDueForSession(s.aggregateScore, n, s.shot.frequency)) return n
-    }
-    return sessionNumber + period
-  }
-
-  const rotation = [...prioritized].sort((a, b) => {
-    const aDue = nextDueSession(a)
-    const bDue = nextDueSession(b)
-    if (aDue !== bDue) return aDue - bDue
-    if (a.priorityScore !== b.priorityScore) return b.priorityScore - a.priorityScore
-    return a.shot.title.localeCompare(b.shot.title)
-  })
+  const rotation = sessionNumber !== null
+    ? sortByRotation(prioritized, sessionNumber)
+    : prioritized
 
   // Score distribution
   const scoreDistribution = { 1: 0, 2: 0, 3: 0 }
@@ -136,7 +122,7 @@ export function Dashboard() {
                   const { shot, aggregateScore, isAssessed, sessionsAgo } = scored
                   const primaryImage = getShotDisplayImage(shot)
                   const rates = ratesByShot.get(shot.id)
-                  const dueAt = nextDueSession(scored)
+                  const dueAt = sessionNumber !== null ? nextDueSession(scored, sessionNumber) : 0
                   const isDueNow = sessionNumber !== null && dueAt === sessionNumber
 
                   return (
