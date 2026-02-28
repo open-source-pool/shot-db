@@ -23,14 +23,16 @@ export function computeAggregate(a: {
 /**
  * Frequency-adjusted spaced repetition period.
  *
- * High-frequency shots get tighter intervals at every skill level:
- *   Score 1 + freq 3 → 1,  Score 1 + freq 2 → 1,  Score 1 + freq 1 → 2
- *   Score 2 + freq 3 → 2,  Score 2 + freq 2 → 3,  Score 2 + freq 1 → 4
- *   Score 3 + freq 3 → 3,  Score 3 + freq 2 → 5,  Score 3 + freq 1 → 7
+ * Tuned for 2–4 shots per session from a library of ~20 active shots.
+ * No shot appears every session — even the weakest get at least one gap.
+ *
+ *   Score 1 + freq 3 → 2,  Score 1 + freq 2 → 3,  Score 1 + freq 1 → 5
+ *   Score 2 + freq 3 → 4,  Score 2 + freq 2 → 5,  Score 2 + freq 1 → 8
+ *   Score 3 + freq 3 → 6,  Score 3 + freq 2 → 8,  Score 3 + freq 1 → 12
  */
 export function spacedPeriod(aggregateScore: number, frequency: number = 2): number {
-  const basePeriod = [1, 2, 4] // indexed by score - 1
-  const freqScale = [2.0, 1.0, 0.5] // indexed by 3 - frequency (so freq 3 = 0.5x = tighter)
+  const basePeriod = [3, 5, 8] // indexed by score - 1
+  const freqScale = [1.5, 1.0, 0.7] // indexed by 3 - frequency (so freq 3 = 0.7x = tighter)
   const base = basePeriod[Math.min(Math.max(aggregateScore, 1), 3) - 1]
   const scale = freqScale[Math.min(Math.max(3 - frequency, 0), 2)]
   return Math.max(1, Math.round(base * scale))
@@ -95,6 +97,7 @@ export interface ShotWithScore {
   aggregateScore: number
   latestAssessment: Assessment | null
   lastPracticedAt: string | null
+  sessionsAgo: number | null
   priorityScore: number
   isAssessed: boolean
 }
@@ -108,11 +111,13 @@ export interface ShotWithScore {
  * 4. Alphabetical
  *
  * @param lastPracticedMap - optional map of shot_id → ISO date string of last practice
+ * @param sessionsAgoMap - optional map of shot_id → number of sessions since last practiced
  */
 export function prioritizeShots(
   shots: Shot[],
   assessments: Assessment[],
-  lastPracticedMap?: Map<string, string>
+  lastPracticedMap?: Map<string, string>,
+  sessionsAgoMap?: Map<string, number>
 ): ShotWithScore[] {
   // Build map: shot_id -> latest assessment
   const latestByShot = new Map<string, Assessment>()
@@ -127,14 +132,16 @@ export function prioritizeShots(
     .filter((s) => s.status === 'active')
     .map((shot) => {
       const latest = latestByShot.get(shot.id) ?? null
-      const aggregateScore = latest ? latest.aggregate_score : 1
+      const aggregateScore = latest ? latest.aggregate_score : 2
       const isAssessed = latest !== null
       const lastPracticedAt = lastPracticedMap?.get(shot.id) ?? null
+      const sessionsAgo = sessionsAgoMap?.get(shot.id) ?? null
       return {
         shot,
         aggregateScore,
         latestAssessment: latest,
         lastPracticedAt,
+        sessionsAgo,
         priorityScore: priorityScore(aggregateScore, shot.frequency),
         isAssessed,
       }
@@ -144,12 +151,12 @@ export function prioritizeShots(
     // 1. Unassessed shots first
     if (a.isAssessed !== b.isAssessed) return a.isAssessed ? 1 : -1
 
-    // For unassessed: least recently practiced first, then frequency DESC, then alpha
+    // For unassessed: most sessions ago first, then frequency DESC, then alpha
     if (!a.isAssessed && !b.isAssessed) {
-      if (a.lastPracticedAt !== b.lastPracticedAt) {
-        if (!a.lastPracticedAt) return -1
-        if (!b.lastPracticedAt) return 1
-        return a.lastPracticedAt.localeCompare(b.lastPracticedAt)
+      if (a.sessionsAgo !== b.sessionsAgo) {
+        if (a.sessionsAgo === null) return -1
+        if (b.sessionsAgo === null) return 1
+        return b.sessionsAgo - a.sessionsAgo
       }
       if (a.shot.frequency !== b.shot.frequency)
         return b.shot.frequency - a.shot.frequency
@@ -160,11 +167,11 @@ export function prioritizeShots(
     if (a.priorityScore !== b.priorityScore)
       return b.priorityScore - a.priorityScore
 
-    // 3. Least recently practiced first (null = never practiced = top)
-    if (a.lastPracticedAt !== b.lastPracticedAt) {
-      if (!a.lastPracticedAt) return -1
-      if (!b.lastPracticedAt) return 1
-      return a.lastPracticedAt.localeCompare(b.lastPracticedAt)
+    // 3. Most sessions ago first (null = never practiced = top)
+    if (a.sessionsAgo !== b.sessionsAgo) {
+      if (a.sessionsAgo === null) return -1
+      if (b.sessionsAgo === null) return 1
+      return b.sessionsAgo - a.sessionsAgo
     }
 
     // 4. Alphabetical

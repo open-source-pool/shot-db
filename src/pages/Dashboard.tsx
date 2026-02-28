@@ -4,6 +4,7 @@ import { useShots } from '../hooks/useShots'
 import { useAssessments } from '../hooks/useAssessments'
 import { getSessionCount, useLastPracticed, useShotSuccessRates } from '../hooks/useSessions'
 import { prioritizeShots, isDueForSession, spacedPeriod } from '../lib/scoring'
+import type { ShotWithScore } from '../lib/scoring'
 import { getImageUrl } from '../lib/supabase'
 import { getShotDisplayImage } from '../lib/variations'
 import { FREQUENCY_LABELS } from '../types'
@@ -12,7 +13,7 @@ import { Sparkline } from '../components/Sparkline'
 export function Dashboard() {
   const { shots, loading: shotsLoading } = useShots()
   const { assessments, loading: assessLoading } = useAssessments()
-  const { lastPracticedMap, loading: lpLoading } = useLastPracticed()
+  const { lastPracticedMap, lastPracticedSessionAgo, loading: lpLoading } = useLastPracticed()
   const { ratesByShot, loading: ratesLoading } = useShotSuccessRates()
   const [sessionNumber, setSessionNumber] = useState<number | null>(null)
   const loading = shotsLoading || assessLoading || lpLoading || ratesLoading
@@ -22,8 +23,26 @@ export function Dashboard() {
   }, [])
 
   const activeShots = shots.filter((s) => s.status === 'active')
-  const prioritized = prioritizeShots(shots, assessments, lastPracticedMap)
+  const prioritized = prioritizeShots(shots, assessments, lastPracticedMap, lastPracticedSessionAgo)
   const assessedCount = new Set(assessments.map((a) => a.shot_id)).size
+
+  // Compute next-due session for each shot and sort by rotation order
+  function nextDueSession(s: ShotWithScore): number {
+    if (sessionNumber === null) return 0
+    const period = spacedPeriod(s.aggregateScore, s.shot.frequency)
+    for (let n = sessionNumber; n < sessionNumber + period; n++) {
+      if (isDueForSession(s.aggregateScore, n, s.shot.frequency)) return n
+    }
+    return sessionNumber + period
+  }
+
+  const rotation = [...prioritized].sort((a, b) => {
+    const aDue = nextDueSession(a)
+    const bDue = nextDueSession(b)
+    if (aDue !== bDue) return aDue - bDue
+    if (a.priorityScore !== b.priorityScore) return b.priorityScore - a.priorityScore
+    return a.shot.title.localeCompare(b.shot.title)
+  })
 
   // Score distribution
   const scoreDistribution = { 1: 0, 2: 0, 3: 0 }
@@ -112,94 +131,81 @@ export function Dashboard() {
                 Shot Performance
               </h2>
               <div className="border border-border rounded-xl overflow-hidden">
-                {/* Header */}
-                <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-2 px-3 py-2 bg-surface-secondary text-xs font-semibold text-on-surface-secondary border-b border-border">
-                  <span className="w-10" />
-                  <span>Shot</span>
-                  <span className="w-16 text-center">Trend</span>
-                  <span className="w-12 text-center">Score</span>
-                  <span className="w-12 text-center">Freq</span>
-                  <span className="w-20 text-center">Next Due</span>
-                </div>
-
                 {/* Rows */}
-                {prioritized.map(({ shot, aggregateScore }) => {
-                  const freq = shot.frequency
-                  const period = spacedPeriod(aggregateScore, freq)
-                  const nextDue = sessionNumber !== null
-                    ? (() => {
-                        let s = sessionNumber
-                        while (s < sessionNumber + period + 1) {
-                          if (isDueForSession(aggregateScore, s, freq)) return s
-                          s++
-                        }
-                        return s
-                      })()
-                    : null
-                  const isDueNow = sessionNumber !== null && isDueForSession(aggregateScore, sessionNumber, freq)
+                {rotation.map((scored) => {
+                  const { shot, aggregateScore, isAssessed, sessionsAgo } = scored
                   const primaryImage = getShotDisplayImage(shot)
                   const rates = ratesByShot.get(shot.id)
+                  const dueAt = nextDueSession(scored)
+                  const isDueNow = sessionNumber !== null && dueAt === sessionNumber
 
                   return (
                     <Link
                       key={shot.id}
                       to={`/shots/${shot.slug}`}
-                      className={`grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-2 px-3 py-2.5 text-sm border-b border-border last:border-b-0 hover:bg-surface-secondary/50 transition-colors ${
+                      className={`block px-3 py-2.5 border-b border-border last:border-b-0 hover:bg-surface-secondary/50 transition-colors ${
                         isDueNow ? 'bg-accent/5' : ''
                       }`}
                     >
-                      <div className="w-10 h-10 rounded-lg bg-surface-secondary overflow-hidden shrink-0 self-center">
-                        {primaryImage ? (
-                          <img
-                            src={getImageUrl(primaryImage.storage_path)}
-                            alt=""
-                            className="w-full h-full object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-on-surface-secondary text-[10px]">
-                            —
-                          </div>
-                        )}
-                      </div>
-                      <span className="truncate font-medium self-center">{shot.title}</span>
-                      <span className="w-20 flex items-center justify-center">
-                        {rates && rates.length > 0 ? (
-                          <Sparkline data={rates.map((r) => r.rate)} width={80} height={32} />
-                        ) : (
-                          <span className="text-[10px] text-on-surface-secondary">—</span>
-                        )}
-                      </span>
-                      <span className="w-12 text-center">
+                      {/* Top row: thumbnail + shot name + score */}
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <div className="w-10 h-10 rounded-lg bg-surface-secondary overflow-hidden shrink-0">
+                          {primaryImage ? (
+                            <img
+                              src={getImageUrl(primaryImage.storage_path)}
+                              alt=""
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-on-surface-secondary text-[10px]">
+                              —
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-medium text-sm">{shot.title}</span>
+                          <span className="text-[10px] text-on-surface-secondary">{FREQUENCY_LABELS[shot.frequency]}</span>
+                        </div>
                         <span
-                          className={`inline-block w-6 h-6 rounded-full text-xs font-bold leading-6 text-center ${
-                            aggregateScore === 1
-                              ? 'bg-danger/15 text-danger'
-                              : aggregateScore === 2
-                                ? 'bg-warning/15 text-warning'
-                                : 'bg-success/15 text-success'
+                          className={`ml-auto inline-flex w-5 h-5 rounded-full text-[10px] font-bold items-center justify-center ${
+                            !isAssessed
+                              ? 'bg-on-surface-secondary/15 text-on-surface-secondary'
+                              : aggregateScore === 1
+                                ? 'bg-danger/15 text-danger'
+                                : aggregateScore === 2
+                                  ? 'bg-warning/15 text-warning'
+                                  : 'bg-success/15 text-success'
                           }`}
                         >
-                          {aggregateScore}
+                          {isAssessed ? aggregateScore : '?'}
                         </span>
-                      </span>
-                      <span className="w-12 text-center text-xs text-on-surface-secondary leading-6">
-                        {FREQUENCY_LABELS[shot.frequency]}
-                      </span>
-                      <span
-                        className={`w-20 text-center text-xs leading-6 ${
-                          isDueNow ? 'text-accent font-semibold' : 'text-on-surface-secondary'
-                        }`}
-                      >
-                        {isDueNow ? 'Now' : nextDue !== null ? `Sess #${nextDue}` : '—'}
-                      </span>
+                      </div>
+                      {/* Bottom row: due session + sessions since last + sparkline */}
+                      <div className="flex items-center pl-12 text-xs">
+                        <span className={isDueNow ? 'text-accent font-semibold' : 'text-on-surface-secondary'}>
+                          {isDueNow ? 'due now' : `due #${dueAt}`}
+                        </span>
+                        {sessionsAgo !== null && (
+                          <span className="text-on-surface-secondary ml-3">
+                            {`last: ${sessionsAgo} ago`}
+                          </span>
+                        )}
+                        <span className="ml-auto flex items-center">
+                          {rates && rates.length > 0 ? (
+                            <Sparkline data={rates.map((r) => r.rate)} width={64} height={24} />
+                          ) : (
+                            <span className="text-on-surface-secondary">—</span>
+                          )}
+                        </span>
+                      </div>
                     </Link>
                   )
                 })}
               </div>
 
               <p className="text-[10px] text-on-surface-secondary mt-2">
-                Sorted by priority (unassessed first, then composite score). Blue rows are due next session.
+                Sorted by rotation schedule. Blue rows are due next session.
               </p>
             </div>
           )}
