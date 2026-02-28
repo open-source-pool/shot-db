@@ -31,7 +31,7 @@ result = 1                         →  2  (execution issue)
 otherwise                          →  3  (proficient)
 ```
 
-Shots without any assessment are treated as **unassessed** — a distinct category above all scored shots in priority.
+Shots without any assessment are treated as **unassessed** — a distinct category above all scored shots in priority. For scheduling purposes, unassessed shots default to score **2** (developing).
 
 **Implementation:** `computeAggregate()` in `src/lib/scoring.ts`
 
@@ -39,24 +39,24 @@ Shots without any assessment are treated as **unassessed** — a distinct catego
 
 ## Scheduling Interval
 
-The review interval combines skill score and real-world frequency. High-frequency shots get tighter intervals at every skill level:
+The review interval combines skill score and real-world frequency. High-frequency shots get tighter intervals at every skill level. Intervals are tuned for sessions of 2–4 shots drawn from a library of ~20 active shots (natural rotation ≈ every 7 sessions):
 
 | Score | Freq 3 (High) | Freq 2 (Medium) | Freq 1 (Low) |
 |-------|---------------|-----------------|---------------|
-| **1** (weakest) | Every session | Every session | Every 2 sessions |
-| **2** (developing) | Every 2 sessions | Every 3 sessions | Every 4 sessions |
-| **3** (proficient) | Every 3 sessions | Every 5 sessions | Every 7 sessions |
+| **1** (weakest) | Every 2 sessions | Every 3 sessions | Every 5 sessions |
+| **2** (developing) | Every 4 sessions | Every 5 sessions | Every 8 sessions |
+| **3** (proficient) | Every 6 sessions | Every 8 sessions | Every 12 sessions |
 
 A shot is **due** for session N if `(N - 1) % period === 0`.
 
 ```
-basePeriod = [1, 2, 4]   // indexed by score - 1
-freqScale  = [2.0, 1.0, 0.5]  // indexed by 3 - frequency
+basePeriod = [3, 5, 8]   // indexed by score - 1
+freqScale  = [1.5, 1.0, 0.7]  // indexed by 3 - frequency
 
 period = max(1, round(basePeriod[score - 1] * freqScale[3 - frequency]))
 ```
 
-This means a proficient high-frequency shot still appears every 3 sessions, while a proficient rare shot can go 7 sessions between reviews.
+Score-1 high-frequency shots appear roughly 3× more often than natural rotation, while proficient low-frequency shots can go 12 sessions between reviews. No shot appears every session — even the weakest shots get at least one session gap to allow variety.
 
 **Implementation:** `spacedPeriod()` and `isDueForSession()` in `src/lib/scoring.ts`
 
@@ -211,4 +211,4 @@ Cooldown: 10 min
 
 Remaining ~11 min would go to reinforcement of "Thin cut to corner" (the score-1 shot).
 
-Next session (#6), "Cross-side bank" will have an assessment and enter the normal rotation. "Thin cut to corner" is due again (score 1, freq 3 = every session). "Stun to center" is due again (score 1, freq 2 = every session). "Rail cut" isn't due until session 7 (score 2, freq 3 = every 2 sessions).
+Next session (#6), "Cross-side bank" will have an assessment and enter the normal rotation. "Thin cut to corner" isn't due until session 7 (score 1, freq 3 = every 2 sessions). "Stun to center" isn't due until session 8 (score 1, freq 2 = every 3 sessions). "Rail cut" isn't due until session 9 (score 2, freq 3 = every 4 sessions).

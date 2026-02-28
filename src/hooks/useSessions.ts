@@ -170,6 +170,7 @@ export async function getSessionCount(): Promise<number> {
  */
 export function useLastPracticed() {
   const [lastPracticedMap, setLastPracticedMap] = useState<Map<string, string>>(new Map())
+  const [lastPracticedSessionAgo, setLastPracticedSessionAgo] = useState<Map<string, number>>(new Map())
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -178,13 +179,24 @@ export function useLastPracticed() {
 
   async function fetchLastPracticed() {
     setLoading(true)
-    // Get all session blocks with their session dates, grouped by shot_id
+    // Get all session blocks with their session dates and session IDs, grouped by shot_id
     const { data } = await supabase
       .from('session_blocks')
-      .select('shot_id, session:sessions(started_at)')
+      .select('shot_id, session_id, session:sessions(started_at)')
       .not('shot_id', 'is', null)
 
+    // Build ordered list of unique session dates (newest first)
+    const sessionDates = new Set<string>()
+    for (const row of data ?? []) {
+      const date = (row.session as any)?.started_at as string | undefined
+      if (date) sessionDates.add(date)
+    }
+    const sortedDates = [...sessionDates].sort((a, b) => b.localeCompare(a))
+    const dateToIndex = new Map<string, number>()
+    sortedDates.forEach((d, i) => dateToIndex.set(d, i))
+
     const map = new Map<string, string>()
+    const agoMap = new Map<string, number>()
     for (const row of data ?? []) {
       const shotId = row.shot_id as string
       const date = (row.session as any)?.started_at as string | undefined
@@ -192,11 +204,13 @@ export function useLastPracticed() {
       const existing = map.get(shotId)
       if (!existing || date > existing) {
         map.set(shotId, date)
+        agoMap.set(shotId, dateToIndex.get(date)!)
       }
     }
     setLastPracticedMap(map)
+    setLastPracticedSessionAgo(agoMap)
     setLoading(false)
   }
 
-  return { lastPracticedMap, loading }
+  return { lastPracticedMap, lastPracticedSessionAgo, loading }
 }
