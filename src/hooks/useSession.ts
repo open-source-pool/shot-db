@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Session, SessionBlock } from '../types'
 
@@ -6,12 +6,7 @@ export function useSessionById(sessionId: string | undefined) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (!sessionId) return
-    fetchSession(sessionId)
-  }, [sessionId])
-
-  async function fetchSession(id: string, isRefetch = false) {
+  const fetchSession = useCallback(async (id: string, isRefetch = false) => {
     if (!isRefetch) setLoading(true)
     const { data } = await supabase
       .from('sessions')
@@ -36,9 +31,23 @@ export function useSessionById(sessionId: string | undefined) {
       })
     }
     if (!isRefetch) setLoading(false)
-  }
+  }, [])
 
-  return { session, loading, refetch: () => sessionId && fetchSession(sessionId, true) }
+  useEffect(() => {
+    if (!sessionId) return
+    const timeoutId = setTimeout(() => {
+      void fetchSession(sessionId)
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
+  }, [sessionId, fetchSession])
+
+  const refetch = useCallback(
+    () => (sessionId ? fetchSession(sessionId, true) : Promise.resolve()),
+    [sessionId, fetchSession]
+  )
+
+  return { session, loading, refetch }
 }
 
 export async function createSession(durationMinutes: number) {

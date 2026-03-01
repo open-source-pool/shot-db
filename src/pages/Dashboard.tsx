@@ -1,39 +1,56 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router'
-import { useShots } from '../hooks/useShots'
-import { useAssessments } from '../hooks/useAssessments'
-import { getSessionCount, useLastPracticed, useShotSuccessRates } from '../hooks/useSessions'
-import { prioritizeShots, nextDueSession, sortByRotation } from '../lib/scoring'
-import type { ShotWithScore } from '../lib/scoring'
-import { getImageUrl } from '../lib/supabase'
-import { getShotDisplayImage } from '../lib/variations'
-import { FREQUENCY_LABELS } from '../types'
-import { Sparkline } from '../components/Sparkline'
+import { useState, useEffect } from "react";
+import { Link } from "react-router";
+import { useShots } from "../hooks/useShots";
+import { useAssessments } from "../hooks/useAssessments";
+import {
+  getSessionCount,
+  useLastPracticed,
+  useShotSuccessRates,
+} from "../hooks/useSessions";
+import {
+  prioritizeShots,
+  nextDueSession,
+  sortByRotation,
+} from "../lib/scoring";
+import { getImageUrl } from "../lib/supabase";
+import { getShotDisplayImage } from "../lib/variations";
+import { FREQUENCY_LABELS } from "../types";
+import { Sparkline } from "../components/Sparkline";
 
 export function Dashboard() {
-  const { shots, loading: shotsLoading } = useShots()
-  const { assessments, loading: assessLoading } = useAssessments()
-  const { lastPracticedMap, lastPracticedSessionAgo, loading: lpLoading } = useLastPracticed()
-  const { ratesByShot, loading: ratesLoading } = useShotSuccessRates()
-  const [sessionNumber, setSessionNumber] = useState<number | null>(null)
-  const loading = shotsLoading || assessLoading || lpLoading || ratesLoading
+  const { shots, loading: shotsLoading } = useShots();
+  const { assessments, loading: assessLoading } = useAssessments();
+  const {
+    lastPracticedMap,
+    lastPracticedSessionAgo,
+    loading: lpLoading,
+  } = useLastPracticed();
+  const { ratesByShot, loading: ratesLoading } = useShotSuccessRates();
+  const [sessionNumber, setSessionNumber] = useState<number | null>(null);
+  const loading = shotsLoading || assessLoading || lpLoading || ratesLoading;
 
   useEffect(() => {
-    getSessionCount().then((count) => setSessionNumber(count + 1))
-  }, [])
+    getSessionCount().then((count) => setSessionNumber(count + 1));
+  }, []);
 
-  const activeShots = shots.filter((s) => s.status === 'active')
-  const prioritized = prioritizeShots(shots, assessments, lastPracticedMap, lastPracticedSessionAgo)
-  const assessedCount = new Set(assessments.map((a) => a.shot_id)).size
+  const activeShots = shots.filter((s) => s.status === "active");
+  const prioritized = prioritizeShots(
+    shots,
+    assessments,
+    lastPracticedMap,
+    lastPracticedSessionAgo,
+  );
+  const assessedCount = new Set(assessments.map((a) => a.shot_id)).size;
 
-  const rotation = sessionNumber !== null
-    ? sortByRotation(prioritized, sessionNumber)
-    : prioritized
+  const rotation =
+    sessionNumber !== null
+      ? sortByRotation(prioritized, sessionNumber)
+      : prioritized;
 
   // Score distribution
-  const scoreDistribution = { 1: 0, 2: 0, 3: 0 }
+  const scoreDistribution = { 1: 0, 2: 0, 3: 0 };
   for (const { aggregateScore } of prioritized) {
-    scoreDistribution[aggregateScore as 1 | 2 | 3]++
+    scoreDistribution[aggregateScore as 1 | 2 | 3]++;
   }
 
   return (
@@ -50,7 +67,7 @@ export function Dashboard() {
             <StatCard label="Assessed" value={assessedCount} />
             <StatCard
               label="Next Session"
-              value={sessionNumber !== null ? `#${sessionNumber}` : '...'}
+              value={sessionNumber !== null ? `#${sessionNumber}` : "..."}
             />
           </div>
 
@@ -64,7 +81,9 @@ export function Dashboard() {
                 {scoreDistribution[1] > 0 && (
                   <div
                     className="bg-danger/80 text-white flex items-center justify-center"
-                    style={{ width: `${(scoreDistribution[1] / prioritized.length) * 100}%` }}
+                    style={{
+                      width: `${(scoreDistribution[1] / prioritized.length) * 100}%`,
+                    }}
                   >
                     {scoreDistribution[1]}
                   </div>
@@ -72,7 +91,9 @@ export function Dashboard() {
                 {scoreDistribution[2] > 0 && (
                   <div
                     className="bg-warning/80 text-white flex items-center justify-center"
-                    style={{ width: `${(scoreDistribution[2] / prioritized.length) * 100}%` }}
+                    style={{
+                      width: `${(scoreDistribution[2] / prioritized.length) * 100}%`,
+                    }}
                   >
                     {scoreDistribution[2]}
                   </div>
@@ -80,7 +101,9 @@ export function Dashboard() {
                 {scoreDistribution[3] > 0 && (
                   <div
                     className="bg-success/80 text-white flex items-center justify-center"
-                    style={{ width: `${(scoreDistribution[3] / prioritized.length) * 100}%` }}
+                    style={{
+                      width: `${(scoreDistribution[3] / prioritized.length) * 100}%`,
+                    }}
                   >
                     {scoreDistribution[3]}
                   </div>
@@ -119,18 +142,23 @@ export function Dashboard() {
               <div className="border border-border rounded-xl overflow-hidden">
                 {/* Rows */}
                 {rotation.map((scored) => {
-                  const { shot, aggregateScore, isAssessed, sessionsAgo } = scored
-                  const primaryImage = getShotDisplayImage(shot)
-                  const rates = ratesByShot.get(shot.id)
-                  const dueAt = sessionNumber !== null ? nextDueSession(scored, sessionNumber) : 0
-                  const isDueNow = sessionNumber !== null && dueAt === sessionNumber
+                  const { shot, aggregateScore, isAssessed, sessionsAgo } =
+                    scored;
+                  const primaryImage = getShotDisplayImage(shot);
+                  const rates = ratesByShot.get(shot.id);
+                  const dueAt =
+                    sessionNumber !== null
+                      ? nextDueSession(scored, sessionNumber)
+                      : 0;
+                  const isDueNow =
+                    sessionNumber !== null && dueAt === sessionNumber;
 
                   return (
                     <Link
                       key={shot.id}
                       to={`/shots/${shot.slug}`}
                       className={`block px-3 py-2.5 border-b border-border last:border-b-0 hover:bg-surface-secondary/50 transition-colors ${
-                        isDueNow ? 'bg-accent/5' : ''
+                        isDueNow ? "bg-accent/5" : ""
                       }`}
                     >
                       {/* Top row: thumbnail + shot name + score */}
@@ -150,27 +178,37 @@ export function Dashboard() {
                           )}
                         </div>
                         <div className="flex flex-col min-w-0">
-                          <span className="font-medium text-sm">{shot.title}</span>
-                          <span className="text-[10px] text-on-surface-secondary">{FREQUENCY_LABELS[shot.frequency]}</span>
+                          <span className="font-medium text-sm">
+                            {shot.title}
+                          </span>
+                          <span className="text-[10px] text-on-surface-secondary">
+                            {FREQUENCY_LABELS[shot.frequency]}
+                          </span>
                         </div>
                         <span
                           className={`ml-auto inline-flex w-5 h-5 rounded-full text-[10px] font-bold items-center justify-center ${
                             !isAssessed
-                              ? 'bg-on-surface-secondary/15 text-on-surface-secondary'
+                              ? "bg-on-surface-secondary/15 text-on-surface-secondary"
                               : aggregateScore === 1
-                                ? 'bg-danger/15 text-danger'
+                                ? "bg-danger/15 text-danger"
                                 : aggregateScore === 2
-                                  ? 'bg-warning/15 text-warning'
-                                  : 'bg-success/15 text-success'
+                                  ? "bg-warning/15 text-warning"
+                                  : "bg-success/15 text-success"
                           }`}
                         >
-                          {isAssessed ? aggregateScore : '?'}
+                          {isAssessed ? aggregateScore : "?"}
                         </span>
                       </div>
                       {/* Bottom row: due session + sessions since last + sparkline */}
                       <div className="flex items-center pl-12 text-xs">
-                        <span className={isDueNow ? 'text-accent font-semibold' : 'text-on-surface-secondary'}>
-                          {isDueNow ? 'due now' : `due #${dueAt}`}
+                        <span
+                          className={
+                            isDueNow
+                              ? "text-accent font-semibold"
+                              : "text-on-surface-secondary"
+                          }
+                        >
+                          {isDueNow ? "due now" : `due #${dueAt}`}
                         </span>
                         {sessionsAgo !== null && (
                           <span className="text-on-surface-secondary ml-3">
@@ -179,14 +217,18 @@ export function Dashboard() {
                         )}
                         <span className="ml-auto flex items-center">
                           {rates && rates.length > 0 ? (
-                            <Sparkline data={rates.map((r) => r.rate)} width={64} height={24} />
+                            <Sparkline
+                              data={rates.map((r) => r.rate)}
+                              width={64}
+                              height={24}
+                            />
                           ) : (
                             <span className="text-on-surface-secondary">—</span>
                           )}
                         </span>
                       </div>
                     </Link>
-                  )
+                  );
                 })}
               </div>
 
@@ -198,7 +240,7 @@ export function Dashboard() {
         </>
       )}
     </div>
-  )
+  );
 }
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
@@ -207,5 +249,5 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
       <div className="text-xl font-bold">{value}</div>
       <div className="text-xs text-on-surface-secondary">{label}</div>
     </div>
-  )
+  );
 }

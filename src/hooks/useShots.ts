@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Shot } from '../types'
 
@@ -7,11 +7,7 @@ export function useShots() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchShots()
-  }, [])
-
-  async function fetchShots() {
+  const fetchShots = useCallback(async () => {
     setLoading(true)
     const { data, error: err } = await supabase
       .from('shots')
@@ -33,7 +29,15 @@ export function useShots() {
       setShots(mapped)
     }
     setLoading(false)
-  }
+  }, [])
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void fetchShots()
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
+  }, [fetchShots])
 
   return { shots, loading, error, refetch: fetchShots }
 }
@@ -43,12 +47,7 @@ export function useShot(slug: string | undefined) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!slug) return
-    fetchShot(slug)
-  }, [slug])
-
-  async function fetchShot(slugParam?: string) {
+  const fetchShot = useCallback(async (slugParam?: string) => {
     const s = slugParam ?? slug
     if (!s) return
     setLoading(true)
@@ -72,7 +71,16 @@ export function useShot(slug: string | undefined) {
       })
     }
     setLoading(false)
-  }
+  }, [slug])
+
+  useEffect(() => {
+    if (!slug) return
+    const timeoutId = setTimeout(() => {
+      void fetchShot(slug)
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
+  }, [slug, fetchShot])
 
   return { shot, loading, error, refetch: fetchShot }
 }

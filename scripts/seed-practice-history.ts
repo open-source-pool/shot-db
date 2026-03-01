@@ -62,7 +62,7 @@ async function seedHistory() {
   console.log(`Found ${sortedDates.length} practice dates\n`)
 
   let created = 0
-  let skippedSlugs = new Set<string>()
+  const skippedSlugs = new Set<string>()
 
   for (const date of sortedDates) {
     const slugs = dateMap.get(date)!

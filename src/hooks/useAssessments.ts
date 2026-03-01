@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Assessment } from '../types'
 import { computeAggregate } from '../lib/scoring'
@@ -7,11 +7,7 @@ export function useAssessments(shotId?: string) {
   const [assessments, setAssessments] = useState<Assessment[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchAssessments()
-  }, [shotId])
-
-  async function fetchAssessments() {
+  const fetchAssessments = useCallback(async () => {
     setLoading(true)
     let query = supabase
       .from('assessments')
@@ -25,7 +21,15 @@ export function useAssessments(shotId?: string) {
     const { data } = await query
     setAssessments(data ?? [])
     setLoading(false)
-  }
+  }, [shotId])
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void fetchAssessments()
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
+  }, [fetchAssessments])
 
   return { assessments, loading, refetch: fetchAssessments }
 }

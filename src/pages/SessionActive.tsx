@@ -19,23 +19,27 @@ export function SessionActive() {
   const [countPopKey, setCountPopKey] = useState(0)
 
   // Wall-clock anchors so the timer survives backgrounding / phone lock
-  const startedAtRef = useRef(Date.now())
+  const startedAtRef = useRef(0)
   const pausedElapsedRef = useRef(0)
-
-  const getElapsed = () => {
-    if (!running) return pausedElapsedRef.current
-    return pausedElapsedRef.current + Math.floor((Date.now() - startedAtRef.current) / 1000)
-  }
 
   // Timer — uses wall-clock diff instead of counter increment
   useEffect(() => {
     if (running) {
       startedAtRef.current = Date.now()
-      const tick = () => setElapsed(getElapsed())
+      const tick = () => {
+        const nextElapsed =
+          pausedElapsedRef.current
+          + Math.floor((Date.now() - startedAtRef.current) / 1000)
+        setElapsed(nextElapsed)
+      }
       tick()
       intervalRef.current = setInterval(tick, 1000)
     } else {
-      pausedElapsedRef.current = elapsed
+      const nextElapsed =
+        pausedElapsedRef.current
+        + Math.floor((Date.now() - startedAtRef.current) / 1000)
+      pausedElapsedRef.current = nextElapsed
+      setElapsed(nextElapsed)
     }
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
@@ -46,7 +50,10 @@ export function SessionActive() {
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === 'visible' && running) {
-        setElapsed(getElapsed())
+        const nextElapsed =
+          pausedElapsedRef.current
+          + Math.floor((Date.now() - startedAtRef.current) / 1000)
+        setElapsed(nextElapsed)
       }
     }
     document.addEventListener('visibilitychange', onVisible)
@@ -55,17 +62,21 @@ export function SessionActive() {
 
   // Reset selected variation when block changes
   useEffect(() => {
-    if (!session) return
-    const blocks = session.blocks ?? []
-    const block = blocks[currentBlockIndex]
-    if (block?.shot_variation_id) {
-      setSelectedVariationId(block.shot_variation_id)
-    } else if (block?.shot) {
-      const defaultVar = getDefaultVariation(block.shot)
-      setSelectedVariationId(defaultVar?.id ?? null)
-    } else {
-      setSelectedVariationId(null)
-    }
+    const timeoutId = setTimeout(() => {
+      if (!session) return
+      const blocks = session.blocks ?? []
+      const block = blocks[currentBlockIndex]
+      if (block?.shot_variation_id) {
+        setSelectedVariationId(block.shot_variation_id)
+      } else if (block?.shot) {
+        const defaultVar = getDefaultVariation(block.shot)
+        setSelectedVariationId(defaultVar?.id ?? null)
+      } else {
+        setSelectedVariationId(null)
+      }
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
   }, [currentBlockIndex, session])
 
   if (loading || !session)

@@ -72,7 +72,7 @@ async function seed() {
   console.log(`Inserting ${tags.length} tags...`)
   const cleanTags = tags.map((t) => t.replace(/"/g, '').replace('#', ''))
   const tagRows = cleanTags.map((name) => ({ name }))
-  const { data: insertedTags, error: tagErr } = await supabase
+  const { error: tagErr } = await supabase
     .from('tags')
     .upsert(tagRows, { onConflict: 'name' })
     .select()

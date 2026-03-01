@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Session, ShotImage, ShotVariation } from '../types'
 
@@ -15,17 +15,41 @@ export interface ShotSessionEntry {
   shot_variation?: ShotVariation | null
 }
 
+interface SessionDateRef {
+  started_at?: string | null
+}
+
+interface ShotSessionHistoryRow {
+  session_id: string
+  block_type: string
+  duration_minutes: number
+  attempts: number | null
+  successes: number | null
+  comfort_rating: number | null
+  notes: string | null
+  shot_image?: ShotImage | null
+  shot_variation?: ShotVariation | null
+  session?: SessionDateRef | null
+}
+
+interface SessionRateRow {
+  shot_id: string | null
+  attempts: number | null
+  successes: number | null
+  session?: SessionDateRef | null
+}
+
+interface LastPracticedRow {
+  shot_id: string | null
+  session?: SessionDateRef | null
+}
+
 /** Fetch all session blocks for a given shot, newest first */
 export function useShotSessionHistory(shotId: string | undefined) {
   const [entries, setEntries] = useState<ShotSessionEntry[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (!shotId) return
-    fetchHistory(shotId)
-  }, [shotId])
-
-  async function fetchHistory(id: string) {
+  const fetchHistory = useCallback(async (id: string) => {
     setLoading(true)
     const { data } = await supabase
       .from('session_blocks')
@@ -46,7 +70,7 @@ export function useShotSessionHistory(shotId: string | undefined) {
       .order('sort_order', { ascending: true })
 
     // Flatten and sort by session date desc
-    const entries: ShotSessionEntry[] = (data ?? []).map((row: any) => ({
+    const entries: ShotSessionEntry[] = ((data as ShotSessionHistoryRow[] | null) ?? []).map((row) => ({
       session_id: row.session_id,
       session_date: row.session?.started_at ?? '',
       block_type: row.block_type,
@@ -63,7 +87,16 @@ export function useShotSessionHistory(shotId: string | undefined) {
     entries.sort((a, b) => b.session_date.localeCompare(a.session_date))
     setEntries(entries)
     setLoading(false)
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!shotId) return
+    const timeoutId = setTimeout(() => {
+      void fetchHistory(shotId)
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
+  }, [shotId, fetchHistory])
 
   return { entries, loading }
 }
@@ -72,11 +105,7 @@ export function useSessions() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchSessions()
-  }, [])
-
-  async function fetchSessions() {
+  const fetchSessions = useCallback(async () => {
     setLoading(true)
     const { data } = await supabase
       .from('sessions')
@@ -91,7 +120,15 @@ export function useSessions() {
 
     setSessions(data ?? [])
     setLoading(false)
-  }
+  }, [])
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void fetchSessions()
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
+  }, [fetchSessions])
 
   return { sessions, loading, refetch: fetchSessions }
 }
@@ -104,11 +141,7 @@ export function useShotSuccessRates() {
   const [ratesByShot, setRatesByShot] = useState<Map<string, { rate: number; sessionDate: string }[]>>(new Map())
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchRates()
-  }, [])
-
-  async function fetchRates() {
+  const fetchRates = useCallback(async () => {
     setLoading(true)
     const { data } = await supabase
       .from('session_blocks')
@@ -117,9 +150,10 @@ export function useShotSuccessRates() {
       .gt('attempts', 0)
 
     const byShot = new Map<string, Map<string, { attempts: number; successes: number; date: string }>>()
-    for (const row of data ?? []) {
-      const shotId = row.shot_id as string
-      const sessionDate = (row.session as any)?.started_at as string | undefined
+    for (const row of (data as SessionRateRow[] | null) ?? []) {
+      const shotId = row.shot_id
+      const sessionDate = row.session?.started_at ?? undefined
+      if (!shotId) continue
       if (!sessionDate) continue
 
       if (!byShot.has(shotId)) byShot.set(shotId, new Map())
@@ -150,7 +184,15 @@ export function useShotSuccessRates() {
 
     setRatesByShot(result)
     setLoading(false)
-  }
+  }, [])
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void fetchRates()
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
+  }, [fetchRates])
 
   return { ratesByShot, loading }
 }
@@ -173,11 +215,7 @@ export function useLastPracticed() {
   const [lastPracticedSessionAgo, setLastPracticedSessionAgo] = useState<Map<string, number>>(new Map())
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchLastPracticed()
-  }, [])
-
-  async function fetchLastPracticed() {
+  const fetchLastPracticed = useCallback(async () => {
     setLoading(true)
     // Get all session blocks with their session dates and session IDs, grouped by shot_id
     const { data } = await supabase
@@ -187,8 +225,8 @@ export function useLastPracticed() {
 
     // Build ordered list of unique session dates (newest first)
     const sessionDates = new Set<string>()
-    for (const row of data ?? []) {
-      const date = (row.session as any)?.started_at as string | undefined
+    for (const row of (data as LastPracticedRow[] | null) ?? []) {
+      const date = row.session?.started_at ?? undefined
       if (date) sessionDates.add(date)
     }
     const sortedDates = [...sessionDates].sort((a, b) => b.localeCompare(a))
@@ -197,9 +235,10 @@ export function useLastPracticed() {
 
     const map = new Map<string, string>()
     const agoMap = new Map<string, number>()
-    for (const row of data ?? []) {
-      const shotId = row.shot_id as string
-      const date = (row.session as any)?.started_at as string | undefined
+    for (const row of (data as LastPracticedRow[] | null) ?? []) {
+      const shotId = row.shot_id
+      const date = row.session?.started_at ?? undefined
+      if (!shotId) continue
       if (!date) continue
       const existing = map.get(shotId)
       if (!existing || date > existing) {
@@ -210,7 +249,15 @@ export function useLastPracticed() {
     setLastPracticedMap(map)
     setLastPracticedSessionAgo(agoMap)
     setLoading(false)
-  }
+  }, [])
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void fetchLastPracticed()
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
+  }, [fetchLastPracticed])
 
   return { lastPracticedMap, lastPracticedSessionAgo, loading }
 }

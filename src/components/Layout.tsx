@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { Dashboard } from '../pages/Dashboard'
 import { Gallery } from '../pages/Gallery'
 import { SessionSetup } from '../pages/SessionSetup'
@@ -41,22 +41,21 @@ export function Layout() {
   const isTabRoute = tabRoutes.has(location.pathname) || isHistoryTab
 
   const navigate = useNavigate()
-
-  // Keep the last-viewed review session mounted so it persists when
-  // the user navigates to a shot detail page and then back.
   const [mountedReviewId, setMountedReviewId] = useState<string | null>(null)
-
-  // Track the last History-tab path so the tab button can restore it
-  const lastHistoryPath = useRef('/sessions')
+  const [lastHistoryPath, setLastHistoryPath] = useState('/sessions')
 
   useEffect(() => {
-    if (reviewSessionId) {
-      setMountedReviewId(reviewSessionId)
-      lastHistoryPath.current = location.pathname
-    } else if (location.pathname === '/sessions') {
-      setMountedReviewId(null)
-      lastHistoryPath.current = '/sessions'
-    }
+    const timeoutId = setTimeout(() => {
+      if (reviewSessionId) {
+        setMountedReviewId(reviewSessionId)
+        setLastHistoryPath(location.pathname)
+      } else if (location.pathname === '/sessions') {
+        setMountedReviewId(null)
+        setLastHistoryPath('/sessions')
+      }
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
   }, [reviewSessionId, location.pathname])
 
   return (
@@ -124,7 +123,7 @@ export function Layout() {
               return (
                 <button
                   key={item.to}
-                  onClick={() => navigate(lastHistoryPath.current)}
+                  onClick={() => navigate(lastHistoryPath)}
                   className={`flex flex-col items-center px-3 py-1.5 text-sm transition-all duration-150 active:scale-90 ${
                     isActive
                       ? 'text-accent font-semibold'
