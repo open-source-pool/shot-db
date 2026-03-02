@@ -106,10 +106,7 @@ Open [http://localhost:5173/shot-db/](http://localhost:5173/shot-db/)
 | `pnpm build` | Type-check and build for production |
 | `pnpm preview` | Preview production build locally |
 | `pnpm lint` | Run ESLint |
-| `pnpm test:unit` | Run unit tests (no Supabase required) |
-| `pnpm test:mock` | Run mocked DB behavior tests (no Supabase required) |
-| `pnpm test:db` | Run local-Supabase integration tests (auto-start + reset local DB) |
-| `pnpm test` | Run unit tests + mocked DB behavior tests |
+| `pnpm test` | Run Vitest suite (unit + mocked behavior tests) |
 | `pnpm db:push` | Push pending migrations to remote Supabase DB |
 | `pnpm db:migrate <name>` | Create a new migration file |
 | `pnpm db:status` | Show local vs remote migration status |
@@ -120,37 +117,13 @@ Open [http://localhost:5173/shot-db/](http://localhost:5173/shot-db/)
 
 ## Testing
 
-### Unit tests
+### Run tests
 
 ```bash
-pnpm test:unit
+pnpm test
 ```
 
-### Mocked DB behavior tests
-
-```bash
-pnpm test:mock
-```
-
-This is a fast in-memory suite that verifies multi-user shared/isolated behavior without Docker or Supabase.
-
-### Optional: local DB integration tests
-
-```bash
-pnpm test:db
-```
-
-`pnpm test:db` is intentionally local-only:
-
-- It checks `supabase status -o env` and auto-runs `supabase start` if needed.
-- It hard-fails unless the Supabase API host is `localhost` or `127.0.0.1`.
-- It resets the local DB on every run using `supabase db reset --local --no-seed`.
-- It passes test-only env vars (`TEST_SUPABASE_URL`, `TEST_SUPABASE_ANON_KEY`) to Vitest.
-
-Requirements:
-
-- Docker daemon must be running (local Supabase uses Docker).
-- The `user_shot_statuses` migration must be applied locally before running DB tests.
+The test suite is local-only and does not run against a live or local Supabase database. Multi-user DB behavior is covered by mocked tests.
 
 ### Pull Remote Data To Local
 

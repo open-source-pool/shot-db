@@ -27,5 +27,5 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Test (no local DB dependency)
-        run: pnpm test -- --exclude 'tests/db/**'
+      - name: Test
+        run: pnpm test
