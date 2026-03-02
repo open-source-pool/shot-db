@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { supabase } from '../lib/supabase'
 import { ImageUpload } from '../components/ImageUpload'
+import { upsertMyShotStatus } from '../hooks/useShots'
 
 export function AddShot() {
   const navigate = useNavigate()
@@ -82,6 +83,11 @@ export function AddShot() {
         is_default: true,
         sort_order: 0,
       })
+
+      const { error: statusErr } = await upsertMyShotStatus(shot.id, status)
+      if (statusErr) {
+        console.error('Failed to persist user shot status:', statusErr)
+      }
     }
 
     setSaving(false)

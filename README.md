@@ -2,6 +2,8 @@
 
 A pool/billiards training app for tracking shots, planning practice sessions with spaced repetition, and reviewing performance over time.
 
+Shot records are shared across authenticated users, while each user has their own active/pending practice subset.
+
 ## Tech Stack
 
 - **React 19** + **TypeScript** + **Vite**
@@ -38,6 +40,7 @@ cp .env.example .env
 |---|---|---|
 | `VITE_SUPABASE_URL` | Yes | Supabase Dashboard > Settings > API |
 | `VITE_SUPABASE_ANON_KEY` | Yes | Supabase Dashboard > Settings > API |
+| `VITE_AUTH_REDIRECT_URL` | Optional | Override OAuth callback URL (defaults to localhost in dev) |
 | `SUPABASE_ACCESS_TOKEN` | For CLI | https://supabase.com/dashboard/account/tokens |
 | `SUPABASE_SERVICE_ROLE_KEY` | For seeding | Supabase Dashboard > Settings > API |
 
@@ -64,6 +67,16 @@ In Supabase Dashboard:
    - `http://localhost:5173/shot-db/`
    - `https://<your-gh-username>.github.io/shot-db/`
 3. Run latest migrations so `sessions` and `assessments` are user-scoped via RLS.
+4. Run latest migrations so `user_shot_statuses` exists for per-user active/pending shot state.
+
+For **local Supabase OAuth testing** (`npx supabase start`), also set:
+
+- `SUPABASE_AUTH_EXTERNAL_GITHUB_CLIENT_ID`
+- `SUPABASE_AUTH_EXTERNAL_GITHUB_SECRET`
+
+And set your GitHub OAuth app callback URL to:
+
+- `http://127.0.0.1:54321/auth/v1/callback`
 
 ### 5. Seed data (optional)
 
@@ -93,12 +106,71 @@ Open [http://localhost:5173/shot-db/](http://localhost:5173/shot-db/)
 | `pnpm build` | Type-check and build for production |
 | `pnpm preview` | Preview production build locally |
 | `pnpm lint` | Run ESLint |
+| `pnpm test:unit` | Run unit tests (no Supabase required) |
+| `pnpm test:mock` | Run mocked DB behavior tests (no Supabase required) |
+| `pnpm test:db` | Run local-Supabase integration tests (auto-start + reset local DB) |
+| `pnpm test` | Run unit tests + mocked DB behavior tests |
 | `pnpm db:push` | Push pending migrations to remote Supabase DB |
 | `pnpm db:migrate <name>` | Create a new migration file |
 | `pnpm db:status` | Show local vs remote migration status |
 | `pnpm seed` | Seed shots, tags, and images |
 | `pnpm seed:assessments` | Seed assessment scores |
 | `pnpm seed:history` | Seed historical practice sessions |
+| `pnpm sync:prod:local` | Pull linked remote public DB data + shot-images storage into local Supabase |
+
+## Testing
+
+### Unit tests
+
+```bash
+pnpm test:unit
+```
+
+### Mocked DB behavior tests
+
+```bash
+pnpm test:mock
+```
+
+This is a fast in-memory suite that verifies multi-user shared/isolated behavior without Docker or Supabase.
+
+### Optional: local DB integration tests
+
+```bash
+pnpm test:db
+```
+
+`pnpm test:db` is intentionally local-only:
+
+- It checks `supabase status -o env` and auto-runs `supabase start` if needed.
+- It hard-fails unless the Supabase API host is `localhost` or `127.0.0.1`.
+- It resets the local DB on every run using `supabase db reset --local --no-seed`.
+- It passes test-only env vars (`TEST_SUPABASE_URL`, `TEST_SUPABASE_ANON_KEY`) to Vitest.
+
+Requirements:
+
+- Docker daemon must be running (local Supabase uses Docker).
+- The `user_shot_statuses` migration must be applied locally before running DB tests.
+
+### Pull Remote Data To Local
+
+```bash
+pnpm sync:prod:local
+```
+
+This command:
+
+- starts local Supabase services (API + DB),
+- dumps linked remote `public` data,
+- resets local DB to current migrations,
+- imports remote data into local DB,
+- syncs the `shot-images` storage bucket from remote to local.
+
+Requirements:
+
+- `SUPABASE_ACCESS_TOKEN` configured for CLI auth
+- linked Supabase project (`npx supabase link --project-ref <ref>`)
+- Docker running locally
 
 ## Database Migrations
 

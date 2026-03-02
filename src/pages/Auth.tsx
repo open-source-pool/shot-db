@@ -2,6 +2,19 @@ import { useState } from 'react'
 import { Github } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
+function getOAuthRedirectTo(): string {
+  const configured = import.meta.env.VITE_AUTH_REDIRECT_URL as string | undefined
+  if (configured) return configured
+
+  const baseUrl = import.meta.env.BASE_URL
+  if (import.meta.env.DEV) {
+    const localPort = window.location.port || '5173'
+    return new URL(baseUrl, `http://localhost:${localPort}`).toString()
+  }
+
+  return new URL(baseUrl, window.location.origin).toString()
+}
+
 export function Auth() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -10,7 +23,7 @@ export function Auth() {
     setError(null)
     setLoading(true)
 
-    const redirectTo = new URL(import.meta.env.BASE_URL, window.location.origin).toString()
+    const redirectTo = getOAuthRedirectTo()
     const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider,
       options: { redirectTo },
