@@ -33,8 +33,10 @@ dist-ssr
 *.bak
 *.orig
 
-# Claude Code
+# LLM
 .claude/
+.codex
 
 # OS
 Thumbs.db
+

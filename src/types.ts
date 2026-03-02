@@ -4,6 +4,8 @@ export interface Shot {
   title: string
   description: string | null
   setup_text: string | null
+  // User-scoped practice status resolved from user_shot_statuses.
+  // Missing user row => pending.
   status: 'active' | 'pending'
   frequency: 1 | 2 | 3
   created_at: string

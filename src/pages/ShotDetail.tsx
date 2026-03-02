@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router'
-import { useShot } from '../hooks/useShots'
+import { useShot, upsertMyShotStatus } from '../hooks/useShots'
 import { useAssessments } from '../hooks/useAssessments'
 import { useShotSessionHistory } from '../hooks/useSessions'
 import { supabase, getImageUrl } from '../lib/supabase'
@@ -126,12 +126,18 @@ export function ShotDetail() {
         description: editDescription.trim() || null,
         setup_text: editSetupText.trim() || null,
         frequency: editFrequency,
-        status: editStatus,
       })
       .eq('id', shot.id)
 
     if (updateErr) {
       setSaveError(updateErr.message)
+      setSaving(false)
+      return
+    }
+
+    const { error: statusErr } = await upsertMyShotStatus(shot.id, editStatus)
+    if (statusErr) {
+      setSaveError(statusErr)
       setSaving(false)
       return
     }

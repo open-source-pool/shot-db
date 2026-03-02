@@ -7,10 +7,13 @@ type StatusFilter = 'all' | 'active' | 'pending'
 type FreqFilter = 0 | 1 | 2 | 3
 
 export function Gallery() {
-  const { shots, loading, error } = useShots()
+  const { shots, loading, error, setShotStatus, setShotStatusBulk, updatingStatusIds } = useShots()
   const [status, setStatus] = useState<StatusFilter>('all')
   const [freq, setFreq] = useState<FreqFilter>(0)
   const [search, setSearch] = useState('')
+  const [bulkMode, setBulkMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const filtered = shots.filter((s) => {
     if (status !== 'all' && s.status !== status) return false
@@ -19,6 +22,40 @@ export function Gallery() {
       return false
     return true
   })
+
+  async function handleSetStatus(shotId: string, nextStatus: 'active' | 'pending') {
+    setActionError(null)
+    const statusError = await setShotStatus(shotId, nextStatus)
+    if (statusError) setActionError(statusError)
+  }
+
+  function toggleSelected(shotId: string, selected: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (selected) next.add(shotId)
+      else next.delete(shotId)
+      return next
+    })
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set())
+  }
+
+  function selectVisible() {
+    setSelectedIds(new Set(filtered.map((shot) => shot.id)))
+  }
+
+  async function handleBulkStatus(statusValue: 'active' | 'pending') {
+    setActionError(null)
+    const ids = [...selectedIds]
+    const statusError = await setShotStatusBulk(ids, statusValue)
+    if (statusError) {
+      setActionError(statusError)
+      return
+    }
+    clearSelection()
+  }
 
   if (error) {
     return (
@@ -39,6 +76,66 @@ export function Gallery() {
           + Add
         </Link>
       </div>
+
+      <div className="flex items-center justify-between mb-3">
+        <button
+          type="button"
+          onClick={() => {
+            setBulkMode((prev) => !prev)
+            setSelectedIds(new Set())
+            setActionError(null)
+          }}
+          className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+            bulkMode
+              ? 'border-accent bg-accent text-white'
+              : 'border-border text-on-surface-secondary'
+          }`}
+        >
+          {bulkMode ? 'Exit Bulk Select' : 'Bulk Select'}
+        </button>
+        {bulkMode && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-on-surface-secondary">
+              Selected: {selectedIds.size}
+            </span>
+            <button
+              type="button"
+              onClick={selectVisible}
+              className="px-2 py-1 text-xs rounded-lg border border-border text-on-surface-secondary"
+            >
+              Select Visible
+            </button>
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="px-2 py-1 text-xs rounded-lg border border-border text-on-surface-secondary"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+      </div>
+
+      {bulkMode && (
+        <div className="mb-3 p-2 rounded-lg border border-border bg-surface-secondary flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void handleBulkStatus('active')}
+            disabled={selectedIds.size === 0}
+            className="px-3 py-1.5 text-xs rounded-lg border border-success text-success disabled:opacity-50"
+          >
+            Mark Active
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleBulkStatus('pending')}
+            disabled={selectedIds.size === 0}
+            className="px-3 py-1.5 text-xs rounded-lg border border-warning text-warning disabled:opacity-50"
+          >
+            Mark Pending
+          </button>
+        </div>
+      )}
 
       <input
         type="text"
@@ -78,6 +175,10 @@ export function Gallery() {
         ))}
       </div>
 
+      {actionError && (
+        <p className="text-danger text-sm mb-3">{actionError}</p>
+      )}
+
       {loading ? (
         <p className="text-on-surface-secondary text-sm">Loading...</p>
       ) : filtered.length === 0 ? (
@@ -85,7 +186,15 @@ export function Gallery() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {filtered.map((shot) => (
-            <ShotCard key={shot.id} shot={shot} />
+            <ShotCard
+              key={shot.id}
+              shot={shot}
+              onSetStatus={(shotId, nextStatus) => void handleSetStatus(shotId, nextStatus)}
+              statusUpdating={updatingStatusIds.includes(shot.id)}
+              bulkMode={bulkMode}
+              selected={selectedIds.has(shot.id)}
+              onSelectedChange={toggleSelected}
+            />
           ))}
         </div>
       )}

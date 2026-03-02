@@ -1,5 +1,5 @@
 {
-  "name": "shotdb",
+  "name": "shot-db",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -7,10 +7,12 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test": "vitest run",
     "preview": "vite preview",
     "seed": "tsx scripts/seed.ts",
     "seed:assessments": "tsx scripts/seed-assessments.ts",
     "seed:history": "tsx scripts/seed-practice-history.ts",
+    "sync:prod:local": "tsx scripts/sync-prod-to-local.ts",
     "db:push": "supabase db push",
     "db:migrate": "supabase migration new",
     "db:status": "supabase migration list"
@@ -34,10 +36,13 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "supabase": "^2.76.15",
     "tailwindcss": "^4.2.1",
     "tsx": "^4.21.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",
+    "vitest": "^3.2.4",
+    "@vitest/coverage-v8": "^3.2.4",
     "vite": "^7.3.1"
   }
 }
