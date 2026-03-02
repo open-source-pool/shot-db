@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router'
 import { useEffect, useState } from 'react'
+import { Moon, Sun } from 'lucide-react'
 import { Dashboard } from '../pages/Dashboard'
 import { Gallery } from '../pages/Gallery'
 import { SessionSetup } from '../pages/SessionSetup'
@@ -67,9 +68,10 @@ export function Layout() {
         <button
           onClick={() => setDark((d) => !d)}
           className="p-2 rounded-lg bg-surface-secondary text-on-surface-secondary hover:text-on-surface transition-colors active:scale-95 transition-transform duration-150"
-          aria-label="Toggle dark mode"
+          aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
         >
-          {dark ? 'Light' : 'Dark'}
+          {dark ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
         </button>
       </header>
 
