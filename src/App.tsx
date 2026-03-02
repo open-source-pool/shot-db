@@ -3,8 +3,20 @@ import { Layout } from './components/Layout'
 import { ShotDetail } from './pages/ShotDetail'
 import { SessionActive } from './pages/SessionActive'
 import { AddShot } from './pages/AddShot'
+import { Auth } from './pages/Auth'
+import { useAuth } from './hooks/useAuth'
 
 export default function App() {
+  const { session, loading } = useAuth()
+
+  if (loading) {
+    return <div className="p-4 text-on-surface-secondary">Loading...</div>
+  }
+
+  if (!session) {
+    return <Auth />
+  }
+
   return (
     <Routes>
       <Route element={<Layout />}>

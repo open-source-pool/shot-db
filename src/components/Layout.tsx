@@ -7,6 +7,7 @@ import { SessionSetup } from '../pages/SessionSetup'
 import { SessionHistory } from '../pages/SessionHistory'
 import { SessionReview } from '../pages/SessionReview'
 import { Assessment } from '../pages/Assessment'
+import { supabase } from '../lib/supabase'
 
 const navItems = [
   { to: '/', label: 'Home' },
@@ -65,14 +66,22 @@ export function Layout() {
         <NavLink to="/" className="text-lg font-bold text-on-surface">
           ShotDB
         </NavLink>
-        <button
-          onClick={() => setDark((d) => !d)}
-          className="p-2 rounded-lg bg-surface-secondary text-on-surface-secondary hover:text-on-surface transition-colors active:scale-95 transition-transform duration-150"
-          aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-          title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-        >
-          {dark ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => void supabase.auth.signOut()}
+            className="px-2 py-1 text-sm rounded-lg border border-border text-on-surface-secondary hover:text-on-surface transition-colors"
+          >
+            Sign out
+          </button>
+          <button
+            onClick={() => setDark((d) => !d)}
+            className="p-2 rounded-lg bg-surface-secondary text-on-surface-secondary hover:text-on-surface transition-colors active:scale-95 transition-transform duration-150"
+            aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {dark ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 pb-24">
