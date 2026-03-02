@@ -55,7 +55,17 @@ Push all migrations to your database:
 pnpm db:push
 ```
 
-### 4. Seed data (optional)
+### 4. Enable auth (GitHub OAuth)
+
+In Supabase Dashboard:
+
+1. Go to **Authentication > Providers** and enable **GitHub**.
+2. Add your app URLs to **Authentication > URL Configuration** redirect allow list:
+   - `http://localhost:5173/shot-db/`
+   - `https://<your-gh-username>.github.io/shot-db/`
+3. Run latest migrations so `sessions` and `assessments` are user-scoped via RLS.
+
+### 5. Seed data (optional)
 
 Place shot images in `docs/seed-data/assets/` and ensure `docs/seed-data/shots.json` and `docs/seed-data/tags.json` exist, then run in order:
 
@@ -67,7 +77,7 @@ pnpm seed:history        # Historical practice sessions
 
 The history seed reads `docs/seed-data/practice-history.json` which maps shot slugs to dates practiced. It groups all shots on the same date into one session with core blocks. Slugs not found in the database are skipped and reported.
 
-### 5. Run the dev server
+### 6. Run the dev server
 
 ```bash
 pnpm dev
