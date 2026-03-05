@@ -7,7 +7,8 @@ function getOAuthRedirectTo(): string {
   if (configured) return configured
 
   const baseUrl = import.meta.env.BASE_URL
-  if (import.meta.env.DEV) {
+  const host = window.location.hostname
+  if (host === 'localhost' || host === '127.0.0.1') {
     const localPort = window.location.port || '5173'
     return new URL(baseUrl, `http://localhost:${localPort}`).toString()
   }

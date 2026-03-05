@@ -42,48 +42,61 @@ export function SessionHistory() {
             }
 
             return (
-              <Link
+              <div
                 key={session.id}
-                to={`/session/${session.id}/review`}
-                className="block p-4 rounded-xl border border-border bg-surface-secondary hover:border-accent transition-colors"
+                className="block p-4 rounded-xl border border-border bg-surface-secondary"
               >
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <span className="font-semibold text-sm">
-                      Session {sessions.length - i}
-                    </span>
-                    <span className="text-xs text-on-surface-secondary ml-2">
-                      {session.duration_minutes} min
+                <Link
+                  to={`/session/${session.id}/review`}
+                  className="block hover:opacity-80 transition-opacity"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <span className="font-semibold text-sm">
+                        Session {sessions.length - i}
+                      </span>
+                      <span className="text-xs text-on-surface-secondary ml-2">
+                        {session.duration_minutes} min
+                      </span>
+                    </div>
+                    <span className="text-xs text-on-surface-secondary">
+                      {new Date(session.started_at).toLocaleDateString()}
                     </span>
                   </div>
-                  <span className="text-xs text-on-surface-secondary">
-                    {new Date(session.started_at).toLocaleDateString()}
-                  </span>
-                </div>
 
-                {shotEntries.length > 0 && (
-                  <p className="text-xs text-on-surface-secondary mb-2 truncate">
-                    {shotEntries.map((s, j) => (
-                      <span key={s.slug}>
-                        {j > 0 && ', '}
-                        <Link
-                          to={`/shots/${s.slug}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-accent hover:underline"
-                        >
-                          {s.title}
-                        </Link>
-                      </span>
-                    ))}
-                  </p>
-                )}
+                  {shotEntries.length > 0 && (
+                    <p className="text-xs text-on-surface-secondary mb-2 truncate">
+                      {shotEntries.map((s, j) => (
+                        <span key={s.slug}>
+                          {j > 0 && ', '}
+                          <span className="text-accent">{s.title}</span>
+                        </span>
+                      ))}
+                    </p>
+                  )}
 
-                <div className="flex gap-4 text-xs">
-                  <span>{totalAttempts} attempts</span>
-                  <span className="text-success">{totalSuccesses} hits</span>
-                  {rate !== null && <span>{rate}% rate</span>}
+                  <div className="flex gap-4 text-xs">
+                    <span>{totalAttempts} attempts</span>
+                    <span className="text-success">{totalSuccesses} hits</span>
+                    {rate !== null && <span>{rate}% rate</span>}
+                  </div>
+                </Link>
+
+                <div className="flex gap-2 mt-3 pt-3 border-t border-border">
+                  <Link
+                    to={`/session/${session.id}/review`}
+                    className="flex-1 text-center px-3 py-1.5 text-xs rounded-lg bg-surface border border-border hover:border-accent transition-colors"
+                  >
+                    Review
+                  </Link>
+                  <Link
+                    to={`/session/${session.id}`}
+                    className="flex-1 text-center px-3 py-1.5 text-xs rounded-lg bg-accent text-white hover:opacity-90 transition-opacity"
+                  >
+                    Resume
+                  </Link>
                 </div>
-              </Link>
+              </div>
             )
           })}
         </div>
