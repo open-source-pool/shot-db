@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router'
 import { useSessionById, updateBlock } from '../hooks/useSession'
 import { getImageUrl } from '../lib/supabase'
 import { getDefaultVariation } from '../lib/variations'
+import { findResumeBlockIndex, sessionTotals } from '../lib/session-helpers'
 import type { SessionBlock, ShotVariation } from '../types'
 
 export function SessionActive() {
@@ -12,6 +13,7 @@ export function SessionActive() {
   const [currentBlockIndex, setCurrentBlockIndex] = useState(0)
   const [elapsed, setElapsed] = useState(0)
   const [running, setRunning] = useState(true)
+  const resumeInitialized = useRef(false)
   const intervalRef = useRef<ReturnType<typeof setInterval>>(null)
   const [editingField, setEditingField] = useState<'attempts' | 'successes' | null>(null)
   const [editValue, setEditValue] = useState('')
@@ -59,6 +61,14 @@ export function SessionActive() {
     document.addEventListener('visibilitychange', onVisible)
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [running])
+
+  // On load, auto-advance to the first block with 0 attempts (resume support)
+  useEffect(() => {
+    if (!session || resumeInitialized.current) return
+    resumeInitialized.current = true
+    const idx = findResumeBlockIndex(session.blocks ?? [])
+    if (idx > 0) setCurrentBlockIndex(idx)
+  }, [session])
 
   // Reset selected variation when block changes
   useEffect(() => {
@@ -178,6 +188,12 @@ export function SessionActive() {
     }
   }
 
+  function prevBlock() {
+    if (currentBlockIndex > 0) {
+      setCurrentBlockIndex((i) => i - 1)
+    }
+  }
+
   function nextBlock() {
     if (currentBlockIndex < blocks.length - 1) {
       setCurrentBlockIndex((i) => i + 1)
@@ -186,6 +202,9 @@ export function SessionActive() {
       setCurrentBlockIndex(blocks.length)
     }
   }
+
+  // Session-wide totals
+  const { totalAttempts, totalSuccesses } = sessionTotals(blocks)
 
   return (
     <div className="pb-4">
@@ -196,6 +215,13 @@ export function SessionActive() {
           <span className="text-xs text-on-surface-secondary ml-2">remaining</span>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={prevBlock}
+            disabled={currentBlockIndex === 0}
+            className="px-3 py-1 text-sm rounded-lg bg-surface border border-border disabled:opacity-30"
+          >
+            Prev
+          </button>
           <button
             onClick={() => setRunning((r) => !r)}
             className="px-3 py-1 text-sm rounded-lg bg-surface border border-border"
@@ -383,6 +409,14 @@ export function SessionActive() {
             <p className="text-xs text-on-surface-secondary text-center">
               Tap a number to correct it
             </p>
+
+            {/* Session totals */}
+            <div className="text-center text-xs text-on-surface-secondary pt-1 border-t border-border">
+              Session: {totalAttempts} attempts, {totalSuccesses} hits
+              {totalAttempts > 0 && (
+                <> ({Math.round((totalSuccesses / totalAttempts) * 100)}%)</>
+              )}
+            </div>
           </>
         )}
       </div>
